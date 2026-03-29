@@ -1,25 +1,25 @@
 /**
  * Crea un usuario admin en Supabase Auth (API admin).
  *
- * Requisitos en .env.local:
- *   NEXT_PUBLIC_SUPABASE_URL
- *   SUPABASE_SERVICE_ROLE_KEY  (Settings → API → service_role, secreto)
+ * Requisitos (una de estas formas):
+ *   - .env.local o .env en la raíz con NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY
+ *   - O exportar esas dos variables en la terminal antes de npm run create-admin
  *
  * Uso: npm run create-admin
  *
- * Opcional:
- *   ADMIN_EMAIL=otro@mail.com ADMIN_PASSWORD=TuClaveSegura1! npm run create-admin
+ * Opcional: ADMIN_EMAIL, ADMIN_PASSWORD
  */
 
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 
-function loadEnvLocal() {
-  const p = resolve(process.cwd(), ".env.local");
+function loadEnvFile(name) {
+  const p = resolve(process.cwd(), name);
   if (!existsSync(p)) return;
-  const text = readFileSync(p, "utf8");
-  for (const line of text.split("\n")) {
+  let text = readFileSync(p, "utf8");
+  if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+  for (const line of text.split(/\r?\n/)) {
     const t = line.trim();
     if (!t || t.startsWith("#")) continue;
     const i = t.indexOf("=");
@@ -36,7 +36,8 @@ function loadEnvLocal() {
   }
 }
 
-loadEnvLocal();
+loadEnvFile(".env.local");
+loadEnvFile(".env");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -47,11 +48,22 @@ const password =
   process.env.ADMIN_PASSWORD || "ComplejoMar2026!Admin";
 
 if (!url || !serviceKey) {
+  const miss = [];
+  if (!url) miss.push("NEXT_PUBLIC_SUPABASE_URL");
+  if (!serviceKey) miss.push("SUPABASE_SERVICE_ROLE_KEY");
+  console.error("\n❌ Faltan: " + miss.join(" y ") + "\n");
   console.error(
-    "\n❌ Faltan variables en .env.local:\n" +
-      "   NEXT_PUBLIC_SUPABASE_URL\n" +
-      "   SUPABASE_SERVICE_ROLE_KEY (Dashboard → Settings → API)\n"
+    "Solo definiste ADMIN_EMAIL / ADMIN_PASSWORD; hacen falta también la URL del proyecto y la clave service_role.\n"
   );
+  console.error("Opción A — Creá o editá el archivo .env.local en la raíz del repo (junto a package.json):\n");
+  console.error("  NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co");
+  console.error("  NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...   (opcional para Next, pero recomendado)");
+  console.error("  SUPABASE_SERVICE_ROLE_KEY=eyJ...       (Project Settings → API → service_role, SECRETO)\n");
+  console.error("Opción B — PowerShell, en la MISMA ventana antes de npm run create-admin:\n");
+  console.error('  $env:NEXT_PUBLIC_SUPABASE_URL="https://xxxx.supabase.co"');
+  console.error('  $env:SUPABASE_SERVICE_ROLE_KEY="eyJ..."');
+  console.error("  npm run create-admin\n");
+  console.error("Las claves están en: https://supabase.com/dashboard → tu proyecto → Settings → API\n");
   process.exit(1);
 }
 
