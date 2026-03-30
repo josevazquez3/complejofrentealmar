@@ -19,9 +19,18 @@ Luego volvé a ejecutar desde el `INSERT INTO casas` en adelante en `seed.sql`, 
 
 **Nota:** `TRUNCATE` elimina todas las filas de esas tablas. No lo uses en producción con datos reales sin backup.
 
+## Contenido público (carrusel, inicio, unidades de marketing)
+
+Ejecutá **`sql_editor_complejo_media.sql`** en el SQL Editor (o la migración `migrations/20260329120000_complejo_media.sql`). Creá el bucket **`complejo-media`** como público desde el dashboard si el `INSERT` en `storage.buckets` no aplica.
+
+Tabla **`secciones_texto`** (textos Equipamiento / Servicios en la home): migración `migrations/20260329140000_secciones_texto.sql`.
+
+Las subidas del admin **Editar sitio** usan la sesión del usuario autenticado y la **anon key**; no requieren `SUPABASE_SERVICE_ROLE_KEY` en Next.js para Storage.
+
 ## Storage
 
-- Carpeta **`fotos/`**: imágenes públicas de casas.
+- Bucket **`complejo-media`**: imágenes del carrusel, bloque Inicio y unidades de marketing (público).
+- Carpeta **`fotos/`** (bucket `archivos`): imágenes públicas de casas.
 - Carpeta **`comprobantes/`**: archivos privados; el admin usa URLs firmadas.
 
 ## Auth

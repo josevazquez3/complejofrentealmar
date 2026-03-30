@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   LogOut,
   Package,
+  PenLine,
   Wallet,
 } from "lucide-react";
 import { FiSettings } from "react-icons/fi";
@@ -25,6 +26,7 @@ const links = [
   { href: "/admin/inventario", label: "Inventario", icon: Package, key: "inventario" as const },
   { href: "/admin/tesoreria", label: "Tesorería", icon: Wallet, key: "tesoreria" as const },
   { href: "/admin/configuracion", label: "Configuración", icon: FiSettings, key: undefined },
+  { href: "/admin/configuracion/editar", label: "Editar sitio", icon: PenLine, key: undefined },
 ] as const;
 
 export function AdminShell({

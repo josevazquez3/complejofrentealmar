@@ -3,25 +3,57 @@ import { ContactBar } from "@/components/home/ContactBar";
 import { EquipamientoSection } from "@/components/home/EquipamientoSection";
 import { HeroCarousel } from "@/components/home/HeroCarousel";
 import { IntroSection } from "@/components/home/IntroSection";
+import { MarketingUnidadesGrid } from "@/components/home/MarketingUnidadesGrid";
 import { MapSection } from "@/components/home/MapSection";
 import { ServiciosSection } from "@/components/home/ServiciosSection";
 import { VideoSection } from "@/components/home/VideoSection";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { mergeConfigWithFallback } from "@/lib/config-fallback";
 import {
+  type CasasLoadResult,
   getCasasActivasForHome,
   getConfiguracion,
   getHeroImageUrls,
+  getInicioMarketing,
+  getSeccionTextoPublic,
+  getUnidadesMarketing,
+  SECCION_PUBLIC_FALLBACK,
 } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
+const HOME_FETCH_MS = 18_000;
+
+/** Evita que un Supabase colgado deje GET / en 500 o 40s+; devuelve fallback al timeout. */
+async function homeDataTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> {
+  return new Promise((resolve) => {
+    const t = setTimeout(() => resolve(fallback), HOME_FETCH_MS);
+    promise
+      .then((v) => {
+        clearTimeout(t);
+        resolve(v);
+      })
+      .catch(() => {
+        clearTimeout(t);
+        resolve(fallback);
+      });
+  });
+}
+
 export default async function HomePage() {
-  const [rawConfig, { casas, failed: casasFailed }, heroUrls] = await Promise.all([
-    getConfiguracion(),
-    getCasasActivasForHome(),
-    getHeroImageUrls(),
-  ]);
+  const casasFallback: CasasLoadResult = { casas: [], failed: true };
+  const [rawConfig, casasResult, heroUrls, inicio, marketingUnidades, secEquip, secServ] =
+    await Promise.all([
+      homeDataTimeout(getConfiguracion(), null),
+      homeDataTimeout(getCasasActivasForHome(), casasFallback),
+      homeDataTimeout(getHeroImageUrls(), []),
+      homeDataTimeout(getInicioMarketing(), null),
+      homeDataTimeout(getUnidadesMarketing(), []),
+      homeDataTimeout(getSeccionTextoPublic("equipamiento"), SECCION_PUBLIC_FALLBACK.equipamiento),
+      homeDataTimeout(getSeccionTextoPublic("servicios"), SECCION_PUBLIC_FALLBACK.servicios),
+    ]);
+
+  const { casas, failed: casasFailed } = casasResult;
 
   const config = mergeConfigWithFallback(rawConfig);
 
@@ -29,10 +61,18 @@ export default async function HomePage() {
     <PublicLayout config={config}>
       <HeroCarousel imageUrls={heroUrls} />
       <ContactBar />
-      <IntroSection />
-      <CasasGrid casas={casas} loadFailed={casasFailed} />
-      <EquipamientoSection />
-      <ServiciosSection />
+      <IntroSection
+        titulo={inicio?.titulo}
+        descripcion={inicio?.descripcion}
+        fotos={inicio?.fotos}
+      />
+      {marketingUnidades.length > 0 ? (
+        <MarketingUnidadesGrid unidades={marketingUnidades} />
+      ) : (
+        <CasasGrid casas={casas} loadFailed={casasFailed} />
+      )}
+      <EquipamientoSection titulo={secEquip.titulo} descripcion={secEquip.descripcion} />
+      <ServiciosSection titulo={secServ.titulo} descripcion={secServ.descripcion} />
       <VideoSection />
       <MapSection />
     </PublicLayout>

@@ -2,22 +2,41 @@
 
 import { motion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarDays,
+  Home,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+
+/** Claves serializables desde Server Components (no pasar componentes Lucide por el límite RSC). */
+const DASHBOARD_ICONS = {
+  calendar: CalendarDays,
+  home: Home,
+  alert: AlertTriangle,
+  wallet: Wallet,
+  trending: TrendingUp,
+} as const satisfies Record<string, LucideIcon>;
+
+export type DashboardCardIcon = keyof typeof DASHBOARD_ICONS;
 
 export function DashboardCard({
   title,
   value,
-  icon: Icon,
+  icon,
   delay = 0,
   valueClassName,
 }: {
   title: string;
   value: React.ReactNode;
-  icon: LucideIcon;
+  icon: DashboardCardIcon;
   delay?: number;
   valueClassName?: string;
 }) {
+  const Icon = DASHBOARD_ICONS[icon];
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}

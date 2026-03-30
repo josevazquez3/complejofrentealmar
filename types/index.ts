@@ -1,5 +1,13 @@
 /** Tipos de dominio y filas de Supabase (alinear con `supabase gen types`). */
 
+export type {
+  CarouselImage,
+  InicioConfig,
+  SeccionTexto,
+  SeccionTextoId,
+  Unidad,
+} from "./configuracion";
+
 export type EstadoInventario = "Bueno" | "Roto" | "Faltante" | "Baja";
 
 export interface Casa {

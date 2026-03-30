@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { createClient } from "./supabase/server";
+import type { InicioConfig, SeccionTexto, SeccionTextoId, Unidad } from "@/types/configuracion";
 import type {
   Casa,
   CasaListItem,
@@ -102,11 +103,104 @@ export const getOtrasCasas = cache(async (excludeId: string): Promise<CasaListIt
   }
 });
 
-/** URLs para el carrusel hero (fotos de todas las casas activas). */
+/** URLs del carrusel: `carousel_images` si hay filas; si no, fotos de casas activas. */
 export async function getHeroImageUrls(): Promise<string[]> {
-  const casas = await getCasasActivas();
-  const urls = casas.flatMap((c) => c.fotos ?? []).filter(Boolean);
-  return Array.from(new Set(urls));
+  try {
+    if (!hasSupabaseEnv()) {
+      const casas = await getCasasActivas();
+      const urls = casas.flatMap((c) => c.fotos ?? []).filter(Boolean);
+      return Array.from(new Set(urls));
+    }
+    try {
+      const supabase = await createClient();
+      const { data, error } = await supabase
+        .from("carousel_images")
+        .select("url")
+        .order("orden", { ascending: true });
+      if (!error && data && data.length > 0) {
+        return data.map((r) => r.url).filter(Boolean);
+      }
+    } catch {
+      /* tabla ausente, red, timeout */
+    }
+    const casas = await getCasasActivas();
+    const urls = casas.flatMap((c) => c.fotos ?? []).filter(Boolean);
+    return Array.from(new Set(urls));
+  } catch {
+    return [];
+  }
+}
+
+/** Bloque Inicio (página pública). */
+export const getInicioMarketing = cache(async (): Promise<InicioConfig | null> => {
+  if (!hasSupabaseEnv()) return null;
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.from("inicio_config").select("*").limit(1).maybeSingle();
+    if (error) return null;
+    return data as InicioConfig | null;
+  } catch {
+    return null;
+  }
+});
+
+/** Unidades de marketing habilitadas (página pública). */
+export const getUnidadesMarketing = cache(async (): Promise<Unidad[]> => {
+  if (!hasSupabaseEnv()) return [];
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("unidades")
+      .select("*")
+      .eq("habilitada", true)
+      .order("orden", { ascending: true });
+    if (error) return [];
+    return (data ?? []) as Unidad[];
+  } catch {
+    return [];
+  }
+});
+
+export const SECCION_PUBLIC_FALLBACK: Record<SeccionTextoId, SeccionTexto> = {
+  equipamiento: {
+    id: "equipamiento",
+    titulo: "EQUIPAMIENTO",
+    descripcion:
+      "Nuestras unidades cuentan con decoración cuidada, cocina equipada, climatización en dormitorios principales, TV, ropa de cama, parrilla individual en terrazas o balcones y espacios pensados para el descanso frente al mar.",
+    updated_at: "",
+  },
+  servicios: {
+    id: "servicios",
+    titulo: "SERVICIOS",
+    descripcion:
+      "Servicios de mucama, desayuno en temporada alta, seguridad nocturna, reposeras y atención personalizada para que su estadía sea tranquila durante las cuatro estaciones. Consulte disponibilidad y condiciones según época del año.",
+    updated_at: "",
+  },
+};
+
+/**
+ * Texto público Equipamiento / Servicios. `fetch` con revalidate 60 (sin cookies → compatible con Data Cache).
+ */
+export async function getSeccionTextoPublic(id: SeccionTextoId): Promise<SeccionTexto> {
+  const fb = SECCION_PUBLIC_FALLBACK[id];
+  if (!hasSupabaseEnv()) return fb;
+  try {
+    const res = await fetch(
+      `${env.supabaseUrl}/rest/v1/secciones_texto?id=eq.${encodeURIComponent(id)}&select=id,titulo,descripcion,updated_at`,
+      {
+        headers: {
+          apikey: env.supabaseAnonKey,
+          Authorization: `Bearer ${env.supabaseAnonKey}`,
+        },
+        next: { revalidate: 60 },
+      }
+    );
+    if (!res.ok) return fb;
+    const rows = (await res.json()) as SeccionTexto[];
+    return rows[0] ?? fb;
+  } catch {
+    return fb;
+  }
 }
 
 /** Casas activas para el flujo público de reservas. */

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { AlertTriangle, CalendarDays, Home, TrendingUp, Wallet } from "lucide-react";
 import { DashboardCard } from "@/components/admin/DashboardCard";
 import { getInventarioStats, getTesoreriaStats } from "@/lib/queries";
 import { formatMonto } from "@/lib/format-moneda";
@@ -47,28 +46,28 @@ export default async function AdminDashboardPage() {
         <DashboardCard
           title="Reservas (mes)"
           value={reservasMes ?? 0}
-          icon={CalendarDays}
+          icon="calendar"
           delay={0}
         />
         <Link href="/admin/reservas?estado=pendiente" className="block">
           <DashboardCard
             title="Reservas pendientes"
             value={reservasPendientes ?? 0}
-            icon={CalendarDays}
+            icon="calendar"
             delay={0.04}
           />
         </Link>
         <DashboardCard
           title="Casas activas"
           value={casasActivas ?? 0}
-          icon={Home}
+          icon="home"
           delay={0.08}
         />
         <Link href="/admin/inventario?vista=stockbajo" className="block">
           <DashboardCard
             title="Items con stock bajo"
             value={invStats.itemsStockBajo}
-            icon={AlertTriangle}
+            icon="alert"
             delay={0.12}
           />
         </Link>
@@ -76,7 +75,7 @@ export default async function AdminDashboardPage() {
           <DashboardCard
             title="Balance del mes"
             value={formatMonto(tesStats.balanceMes)}
-            icon={Wallet}
+            icon="wallet"
             delay={0.16}
             valueClassName={tesStats.balanceMes >= 0 ? "text-green-700" : "text-red-600"}
           />
@@ -85,7 +84,7 @@ export default async function AdminDashboardPage() {
           <DashboardCard
             title="Ingresos del mes"
             value={formatMonto(tesStats.ingresosMes)}
-            icon={TrendingUp}
+            icon="trending"
             delay={0.2}
             valueClassName="text-green-700"
           />
