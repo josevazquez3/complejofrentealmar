@@ -27,13 +27,19 @@ Abrir [http://localhost:3000](http://localhost:3000). Panel admin: `/admin/login
 
 ## Base de datos
 
-El esquema está en `prisma/schema.prisma` y solo usa **`DATABASE_URL`**. Los scripts `db:*` cargan **`.env` y `.env.local`**. Si corrés **`npx prisma` a mano**, Prisma no lee `.env.local`: usá **`npm run db:*`** o un archivo **`.env`** en la raíz con `DATABASE_URL`.
+El esquema está en `prisma/schema.prisma` y solo usa **`DATABASE_URL`**. Los scripts `db:*` cargan **`.env` y `.env.local`**.
+
+**Si ves errores “table does not exist”:** la base Neon está vacía respecto de este proyecto. Con `DATABASE_URL` correcta en `.env.local`:
 
 ```bash
 npx prisma generate
-npm run db:push
-npm run db:migrate:dev
 npm run db:migrate
 ```
 
-Si `migrate` falla: en `.env.local` tenés que tener **URI reales** `postgresql://...` desde Neon (no líneas con `********`). Guía de formato: `database.env.example` en la raíz del repo.
+Eso aplica `prisma/migrations/20260405000000_init`. Alternativa sin historial de migraciones: `npm run db:push`.
+
+**NextAuth:** en **producción** definí **`NEXTAUTH_SECRET`** (p. ej. `openssl rand -base64 32` en Vercel). En **`next dev`**, si falta, se usa un secreto local fijo para que el login no falle.
+
+Si corrés **`npx prisma` a mano**, Prisma no lee `.env.local`: usá **`npm run db:*`** o un **`.env`** en la raíz con `DATABASE_URL`.
+
+Si `migrate` falla: pegá en `.env.local` la URI real `postgresql://...` desde Neon (no `********`). Guía: `database.env.example`.

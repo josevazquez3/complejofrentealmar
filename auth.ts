@@ -1,10 +1,12 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
+import { getNextAuthSecret } from "@/lib/auth-secret";
 import { prisma } from "@/lib/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
+  secret: getNextAuthSecret(),
   providers: [
     Credentials({
       name: "credentials",
@@ -17,8 +19,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const password = credentials?.password?.toString() ?? "";
         if (!email || !password) return null;
 
-        const user = await prisma.user.findUnique({ where: { email } });
-        if (!user) return null;
+        const user = await prisma.usuario.findUnique({ where: { email } });
+        if (!user || !user.activo) return null;
 
         const ok = await compare(password, user.password);
         if (!ok) return null;
@@ -26,7 +28,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return {
           id: user.id,
           email: user.email,
-          role: user.role,
+          rol: user.rol,
         };
       },
     }),
@@ -39,14 +41,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as { role?: string }).role ?? "ADMIN";
+        token.rol = (user as { rol?: string }).rol ?? "ADMIN";
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        session.user.role = (token.role as string) ?? "ADMIN";
+        session.user.rol = (token.rol as string) ?? "ADMIN";
       }
       return session;
     },

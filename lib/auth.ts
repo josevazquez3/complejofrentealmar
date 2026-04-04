@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 export type AppUser = {
   id: string;
   email: string;
-  role: string;
+  rol: string;
 };
 
 /**
@@ -16,7 +16,7 @@ export async function getServerUser(): Promise<AppUser | null> {
     return {
       id: session.user.id,
       email: session.user.email,
-      role: session.user.role ?? "ADMIN",
+      rol: session.user.rol ?? "ADMIN",
     };
   } catch {
     return null;

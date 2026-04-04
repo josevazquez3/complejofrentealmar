@@ -1,10 +1,10 @@
 /**
- * Crea o actualiza un usuario admin en la tabla `users` (Prisma / bcrypt).
+ * Crea o actualiza un usuario en la tabla `usuarios` (Prisma / bcrypt).
  *
  * Requisitos: DATABASE_URL en .env.local o .env
  * Uso: npm run create-admin
  *
- * Opcional: ADMIN_EMAIL, ADMIN_PASSWORD
+ * Opcional: ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NOMBRE, ADMIN_ROL (SUPER_ADMIN | ADMIN | EMPLEADO)
  */
 
 import { readFileSync, existsSync } from "fs";
@@ -39,6 +39,9 @@ loadEnvFile(".env");
 
 const email = (process.env.ADMIN_EMAIL || "admin@complejofrentealmar.local").trim().toLowerCase();
 const password = process.env.ADMIN_PASSWORD || "ComplejoMar2026!Admin";
+const nombre = (process.env.ADMIN_NOMBRE || "Administrador").trim() || "Administrador";
+const rolRaw = (process.env.ADMIN_ROL || "SUPER_ADMIN").trim().toUpperCase();
+const rol = ["SUPER_ADMIN", "ADMIN", "EMPLEADO"].includes(rolRaw) ? rolRaw : "SUPER_ADMIN";
 
 if (!process.env.DATABASE_URL?.trim()) {
   console.error("\n❌ Falta DATABASE_URL (Neon / PostgreSQL).\n");
@@ -50,18 +53,18 @@ const prisma = new PrismaClient();
 
 try {
   const hash = await bcrypt.hash(password, 10);
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const existing = await prisma.usuario.findUnique({ where: { email } });
   if (existing) {
-    await prisma.user.update({
+    await prisma.usuario.update({
       where: { email },
-      data: { password: hash, role: "ADMIN" },
+      data: { password: hash, nombre, activo: true },
     });
-    console.log("\n✅ Usuario admin actualizado (contraseña renovada).\n");
+    console.log("\n✅ Usuario actualizado (contraseña y nombre renovados).\n");
   } else {
-    await prisma.user.create({
-      data: { email, password: hash, role: "ADMIN" },
+    await prisma.usuario.create({
+      data: { email, password: hash, nombre, rol },
     });
-    console.log("\n✅ Usuario admin creado.\n");
+    console.log("\n✅ Usuario creado.\n");
   }
   console.log("   Email:       ", email);
   console.log("   Contraseña:  ", password);

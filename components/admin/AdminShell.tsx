@@ -12,6 +12,7 @@ import {
   LogOut,
   Package,
   PenLine,
+  Users,
   Wallet,
 } from "lucide-react";
 import { FiSettings } from "react-icons/fi";
@@ -21,12 +22,19 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 const links = [
-  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, key: undefined },
-  { href: "/admin/reservas", label: "Reservas", icon: CalendarDays, key: "reservas" as const },
-  { href: "/admin/inventario", label: "Inventario", icon: Package, key: "inventario" as const },
-  { href: "/admin/tesoreria", label: "Tesorería", icon: Wallet, key: "tesoreria" as const },
-  { href: "/admin/configuracion", label: "Configuración", icon: FiSettings, key: undefined },
-  { href: "/admin/configuracion/editar", label: "Editar sitio", icon: PenLine, key: undefined },
+  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, key: undefined, gestoresOnly: false },
+  {
+    href: "/admin/usuarios",
+    label: "Usuarios",
+    icon: Users,
+    key: undefined,
+    gestoresOnly: true,
+  },
+  { href: "/admin/reservas", label: "Reservas", icon: CalendarDays, key: "reservas" as const, gestoresOnly: false },
+  { href: "/admin/inventario", label: "Inventario", icon: Package, key: "inventario" as const, gestoresOnly: false },
+  { href: "/admin/tesoreria", label: "Tesorería", icon: Wallet, key: "tesoreria" as const, gestoresOnly: false },
+  { href: "/admin/configuracion", label: "Configuración", icon: FiSettings, key: undefined, gestoresOnly: false },
+  { href: "/admin/configuracion/editar", label: "Editar sitio", icon: PenLine, key: undefined, gestoresOnly: false },
 ] as const;
 
 export function AdminShell({
@@ -34,14 +42,17 @@ export function AdminShell({
   pendingReservas,
   inventarioStockBajo,
   tesoreriaBalanceNegativo,
+  showUsuariosNav,
 }: {
   children: React.ReactNode;
   pendingReservas: number;
   inventarioStockBajo: number;
   tesoreriaBalanceNegativo: boolean;
+  showUsuariosNav: boolean;
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const visibleLinks = links.filter((l) => !l.gestoresOnly || showUsuariosNav);
 
   async function handleLogout() {
     await signOut({ redirect: false });
@@ -75,7 +86,7 @@ export function AdminShell({
           </Button>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-2">
-          {links.map(({ href, label, icon: Icon, key }) => {
+          {visibleLinks.map(({ href, label, icon: Icon, key }) => {
             const active = pathname === href || pathname.startsWith(`${href}/`);
             return (
               <Link

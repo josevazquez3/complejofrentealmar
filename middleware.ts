@@ -1,11 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { getNextAuthSecret } from "@/lib/auth-secret";
 
 /**
  * Protege `/admin/*` excepto `/admin/login`. Compatible con Edge (sin Prisma).
  */
 export async function middleware(request: NextRequest) {
-  const secret = process.env.NEXTAUTH_SECRET;
+  const secret = getNextAuthSecret();
   if (!secret) {
     return NextResponse.next();
   }
