@@ -42,7 +42,7 @@ const password = process.env.ADMIN_PASSWORD || "ComplejoMar2026!Admin";
 
 if (!process.env.DATABASE_URL?.trim()) {
   console.error("\n❌ Falta DATABASE_URL (Neon / PostgreSQL).\n");
-  console.error("Definilo en .env.local junto a DIRECT_URL si usás Prisma Migrate.\n");
+  console.error("Definilo en .env.local (o .env) con la connection string de Neon.\n");
   process.exit(1);
 }
 

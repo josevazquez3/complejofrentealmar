@@ -7,7 +7,7 @@ Sitio y backoffice del complejo **Frente al Mar** (Costa Atlántica, Argentina).
 - **NextAuth** (credenciales) para el panel admin
 - **Vercel Blob** para archivos e imágenes
 
-Variables de entorno: copiá `.env.example` a `.env.local` y completá `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL` (local), `BLOB_READ_WRITE_TOKEN` y las públicas que uses.
+Variables de entorno: copiá `.env.example` a `.env.local` y completá `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL` (local), `BLOB_READ_WRITE_TOKEN` y las públicas que uses.
 
 ## Desarrollo
 
@@ -27,11 +27,13 @@ Abrir [http://localhost:3000](http://localhost:3000). Panel admin: `/admin/login
 
 ## Base de datos
 
-El esquema está en `prisma/schema.prisma`. Para alinear la base en Neon:
+El esquema está en `prisma/schema.prisma` y solo usa **`DATABASE_URL`**. Los scripts `db:*` cargan **`.env` y `.env.local`**. Si corrés **`npx prisma` a mano**, Prisma no lee `.env.local`: usá **`npm run db:*`** o un archivo **`.env`** en la raíz con `DATABASE_URL`.
 
 ```bash
 npx prisma generate
-npx prisma db push
+npm run db:push
+npm run db:migrate:dev
+npm run db:migrate
 ```
 
-O usá migraciones versionadas con `prisma migrate` según tu flujo de despliegue.
+Si `migrate` falla: en `.env.local` tenés que tener **URI reales** `postgresql://...` desde Neon (no líneas con `********`). Guía de formato: `database.env.example` en la raíz del repo.
