@@ -1,16 +1,23 @@
-import type { User } from "@supabase/supabase-js";
-import { createClient } from "./supabase/server";
+import { auth } from "@/auth";
+
+export type AppUser = {
+  id: string;
+  email: string;
+  role: string;
+};
 
 /**
- * Devuelve el usuario autenticado en el servidor (o null).
+ * Usuario de sesión NextAuth en el servidor (o null).
  */
-export async function getServerUser(): Promise<User | null> {
+export async function getServerUser(): Promise<AppUser | null> {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    return user;
+    const session = await auth();
+    if (!session?.user?.email) return null;
+    return {
+      id: session.user.id,
+      email: session.user.email,
+      role: session.user.role ?? "ADMIN",
+    };
   } catch {
     return null;
   }

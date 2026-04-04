@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
 
 const HOME_FETCH_MS = 18_000;
 
-/** Evita que un Supabase colgado deje GET / en 500 o 40s+; devuelve fallback al timeout. */
+/** Evita que la consulta a la BD deje GET / colgado; devuelve fallback al timeout. */
 async function homeDataTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> {
   return new Promise((resolve) => {
     const t = setTimeout(() => resolve(fallback), HOME_FETCH_MS);

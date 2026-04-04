@@ -16,8 +16,8 @@ import {
 } from "lucide-react";
 import { FiSettings } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
+import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
 const links = [
@@ -44,10 +44,9 @@ export function AdminShell({
   const [collapsed, setCollapsed] = useState(false);
 
   async function handleLogout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    window.location.href = "/admin/login";
+    await signOut({ redirect: false });
     toast.success("Sesión cerrada");
+    window.location.href = "/admin/login";
   }
 
   return (

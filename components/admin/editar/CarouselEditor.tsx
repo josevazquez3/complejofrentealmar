@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, ImagePlus, Loader2, Trash2, Upload } from "lucide-react";
+import { ChevronDown, ChevronUp, ImagePlus, Loader2, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   deleteImage,
@@ -49,7 +49,10 @@ export function CarouselEditor({ initial }: { initial: Row[] }) {
     if (!file || rows.length >= MAX) return;
     setBusy("upload");
     try {
-      const { url, path } = await uploadImage(file, "carousel");
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("folder", "carousel");
+      const { url, path } = await uploadImage(fd);
       const nextOrden = rows.length ? Math.max(...rows.map((r) => r.orden)) + 1 : 0;
       setRows((prev) => [
         ...prev,
@@ -137,15 +140,27 @@ export function CarouselEditor({ initial }: { initial: Row[] }) {
             </span>
           </label>
           {file ? (
-            <Button
-              type="button"
-              className="bg-nautico-900 text-white hover:bg-nautico-800"
-              disabled={busy !== null}
-              onClick={() => void onUpload()}
-            >
-              {busy === "upload" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              Subir
-            </Button>
+            <>
+              <Button
+                type="button"
+                className="bg-nautico-900 text-white hover:bg-nautico-800"
+                disabled={busy !== null}
+                onClick={() => void onUpload()}
+              >
+                {busy === "upload" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                Subir
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy !== null}
+                onClick={() => setFile(null)}
+                aria-label="Quitar foto elegida"
+              >
+                <X className="mr-1 h-4 w-4" />
+                Otra foto
+              </Button>
+            </>
           ) : null}
         </div>
       </div>
@@ -154,6 +169,17 @@ export function CarouselEditor({ initial }: { initial: Row[] }) {
         <div className="relative mx-auto aspect-video max-h-48 w-full max-w-md overflow-hidden rounded-lg border bg-nautico-900/5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={preview} alt="" className="h-full w-full object-contain" />
+          <Button
+            type="button"
+            size="icon"
+            variant="secondary"
+            className="absolute right-2 top-2 h-9 w-9 bg-white/95 shadow-md hover:bg-white"
+            disabled={busy !== null}
+            onClick={() => setFile(null)}
+            aria-label="Quitar vista previa y elegir otra foto"
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
       ) : null}
 

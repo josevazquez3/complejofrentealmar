@@ -1,0 +1,224 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique
+  password  String
+  role      String   @default("ADMIN")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+model Configuracion {
+  id                 String   @id @default(uuid()) @db.Uuid
+  complejoNombre     String   @default("Frente al Mar") @map("complejo_nombre")
+  tagline            String?  @map("tagline")
+  descripcionHome    String?  @map("descripcion_home")
+  ubicacionDireccion String?  @map("ubicacion_direccion")
+  mapaQuery          String?  @map("mapa_query")
+  whatsappE164       String?  @map("whatsapp_e164")
+  emailContacto      String?  @map("email_contacto")
+  facebookUrl        String?  @map("facebook_url")
+  instagramUrl       String?  @map("instagram_url")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("configuracion")
+}
+
+model Casa {
+  id                String   @id @default(uuid()) @db.Uuid
+  nombre            String
+  descripcion       String?
+  capacidadPersonas Int      @map("capacidad_personas")
+  fotos             String[] @default([])
+  activa            Boolean  @default(true)
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  reservas                Reserva[]
+  inventarioItems         InventarioItem[]
+  tesoreriaMovimientos    TesoreriaMovimiento[]
+  tesoreriaLegacy         TesoreriaLegacy[]
+
+  @@map("casas")
+}
+
+model Reserva {
+  id             String   @id @default(uuid()) @db.Uuid
+  casaId         String   @map("casa_id") @db.Uuid
+  fechaDesde     DateTime @map("fecha_desde") @db.Date
+  fechaHasta     DateTime @map("fecha_hasta") @db.Date
+  cantPersonas   Int      @map("cant_personas")
+  mascotas       Int      @default(0)
+  comprobanteUrl String?  @map("comprobante_url")
+  saldoReserva   Decimal? @map("saldo_reserva") @db.Decimal(10, 2)
+  createdAt      DateTime @default(now()) @map("created_at")
+  nombre         String?
+  apellido       String?
+  email          String?
+  telefono       String?
+  mensaje        String?
+  estado         String   @default("pendiente")
+
+  casa       Casa                  @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  tesoreria  TesoreriaLegacy[]
+  tesoreriaMovs TesoreriaMovimiento[]
+
+  @@index([casaId, fechaDesde, fechaHasta])
+  @@map("reservas")
+}
+
+/// Tabla legacy del schema original (panel que aún usa `tesoreria`).
+model TesoreriaLegacy {
+  id             String   @id @default(uuid()) @db.Uuid
+  casaId         String?  @map("casa_id") @db.Uuid
+  reservaId      String?  @map("reserva_id") @db.Uuid
+  diferencia     Decimal? @db.Decimal(10, 2)
+  comprobanteUrl String?  @map("comprobante_url")
+  saldo          Decimal? @db.Decimal(10, 2)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  casa    Casa?    @relation(fields: [casaId], references: [id], onDelete: SetNull)
+  reserva Reserva? @relation(fields: [reservaId], references: [id], onDelete: SetNull)
+
+  @@map("tesoreria")
+}
+
+model InventarioCategoria {
+  id        String   @id @default(uuid()) @db.Uuid
+  nombre    String   @unique
+  icono     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  items InventarioItem[]
+
+  @@map("inventario_categorias")
+}
+
+model InventarioItem {
+  id           String   @id @default(uuid()) @db.Uuid
+  casaId       String   @map("casa_id") @db.Uuid
+  categoriaId  String?  @map("categoria_id") @db.Uuid
+  nombre       String
+  descripcion  String?
+  cantidad     Int      @default(1)
+  cantidadMin  Int      @default(1) @map("cantidad_min")
+  unidad       String   @default("unidad")
+  estado       String   @default("bueno")
+  ubicacion    String?
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  casa        Casa                  @relation(fields: [casaId], references: [id], onDelete: Cascade)
+  categoria   InventarioCategoria?  @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
+  movimientos InventarioMovimiento[]
+
+  @@index([casaId])
+  @@index([categoriaId])
+  @@map("inventario_items")
+}
+
+model InventarioMovimiento {
+  id               String   @id @default(uuid()) @db.Uuid
+  itemId           String   @map("item_id") @db.Uuid
+  tipo             String
+  cantidad         Int
+  cantidadAnterior Int      @map("cantidad_anterior")
+  cantidadNueva    Int      @map("cantidad_nueva")
+  motivo           String?
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  item InventarioItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, createdAt(sort: Desc)])
+  @@map("inventario_movimientos")
+}
+
+model TesoreriaCategoria {
+  id        String   @id @default(uuid()) @db.Uuid
+  nombre    String   @unique
+  tipo      String
+  icono     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  movimientos TesoreriaMovimiento[]
+
+  @@map("tesoreria_categorias")
+}
+
+model TesoreriaMovimiento {
+  id           String    @id @default(uuid()) @db.Uuid
+  fecha        DateTime  @db.Date
+  tipo         String
+  categoriaId  String?   @map("categoria_id") @db.Uuid
+  casaId       String?   @map("casa_id") @db.Uuid
+  reservaId    String?   @map("reserva_id") @db.Uuid
+  concepto     String
+  monto        Decimal   @db.Decimal(12, 2)
+  metodoPago   String    @default("efectivo") @map("metodo_pago")
+  comprobante  String?
+  notas        String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  categoria TesoreriaCategoria? @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
+  casa      Casa?               @relation(fields: [casaId], references: [id], onDelete: SetNull)
+  reserva   Reserva?            @relation(fields: [reservaId], references: [id], onDelete: SetNull)
+
+  @@index([fecha(sort: Desc)])
+  @@index([tipo])
+  @@map("tesoreria_movimientos")
+}
+
+model CarouselImage {
+  id          String   @id @default(uuid()) @db.Uuid
+  url         String
+  storagePath String   @map("storage_path")
+  orden       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([orden])
+  @@map("carousel_images")
+}
+
+model InicioConfig {
+  id          String   @id @default(uuid()) @db.Uuid
+  titulo      String   @default("")
+  descripcion String   @default("")
+  fotos       String[] @default([])
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("inicio_config")
+}
+
+model Unidad {
+  id          String   @id @default(uuid()) @db.Uuid
+  titulo      String
+  descripcion String   @default("")
+  fotos       String[] @default([])
+  habilitada  Boolean  @default(true)
+  orden       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([habilitada, orden])
+  @@map("unidades")
+}
+
+model SeccionTexto {
+  id          String   @id
+  titulo      String   @default("")
+  descripcion String   @default("")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("secciones_texto")
+}

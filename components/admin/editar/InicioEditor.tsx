@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { ImagePlus, Loader2, Trash2, Upload } from "lucide-react";
+import { ImagePlus, Loader2, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { deleteImage, saveInicioConfig, uploadImage } from "@/app/actions/configuracion";
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { InicioConfig } from "@/types/configuracion";
 
-function pathFromComplejoMediaUrl(url: string): string | null {
-  const idx = url.indexOf("/complejo-media/");
-  if (idx === -1) return null;
-  return decodeURIComponent(url.slice(idx + "/complejo-media/".length).split("?")[0] ?? "");
+/** URL pública del blob (sin querystring) para borrar con `del()`. */
+function pathForStorageDelete(url: string): string | null {
+  const u = url.trim();
+  if (!u || !u.startsWith("http")) return null;
+  return u.split("?")[0] ?? u;
 }
 
 function padFour(fotos: string[] | null | undefined): string[] {
@@ -51,8 +52,11 @@ export function InicioEditor({ initial }: { initial: InicioConfig | null }) {
   const uploadToSlot = async () => {
     if (slotFile === null || !file) return;
     setBusy(`up-${slotFile}`);
-    try {
-      const { url } = await uploadImage(file, "inicio");
+      try {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("folder", "inicio");
+        const { url } = await uploadImage(fd);
       setFotos((prev) => {
         const next = [...prev];
         next[slotFile] = url;
@@ -71,7 +75,7 @@ export function InicioEditor({ initial }: { initial: InicioConfig | null }) {
   const clearSlot = async (slot: number) => {
     const url = fotos[slot];
     if (!url) return;
-    const path = pathFromComplejoMediaUrl(url);
+    const path = pathForStorageDelete(url);
     setBusy(`cl-${slot}`);
     try {
       if (path) await deleteImage(path);
@@ -185,7 +189,9 @@ export function InicioEditor({ initial }: { initial: InicioConfig | null }) {
 
       {slotFile !== null && file ? (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-nautico-900/10 p-4">
-          <span className="text-sm text-nautico-700">Slot {slotFile + 1}: {file.name}</span>
+          <span className="min-w-0 flex-1 text-sm text-nautico-700">
+            Slot {slotFile + 1}: <span className="font-medium">{file.name}</span>
+          </span>
           <Button
             type="button"
             className="bg-nautico-900 text-white hover:bg-nautico-800"
@@ -195,6 +201,18 @@ export function InicioEditor({ initial }: { initial: InicioConfig | null }) {
             {busy === `up-${slotFile}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
             Subir a este lugar
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy !== null}
+            onClick={() => {
+              setFile(null);
+              setSlotFile(null);
+            }}
+          >
+            <X className="mr-1 h-4 w-4" />
+            Otra foto
+          </Button>
         </div>
       ) : null}
 
@@ -202,6 +220,11 @@ export function InicioEditor({ initial }: { initial: InicioConfig | null }) {
         type="button"
         className="bg-nautico-900 text-white hover:bg-nautico-800"
         disabled={busy !== null || !titulo.trim()}
+        title={
+          !titulo.trim()
+            ? "Completá el título de la sección para habilitar Guardar"
+            : undefined
+        }
         onClick={() => void onSave()}
       >
         {busy === "save" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

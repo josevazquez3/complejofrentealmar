@@ -18,6 +18,9 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://complejofrentealmar.com.ar"),
+  icons: {
+    icon: "/favicon.svg",
+  },
   title: {
     default: `${env.complexName} | Alquiler Costa Atlántica`,
     template: `%s | ${env.complexName}`,

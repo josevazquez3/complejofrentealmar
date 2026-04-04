@@ -1,18 +1,16 @@
 /**
- * Crea un usuario admin en Supabase Auth (API admin).
+ * Crea o actualiza un usuario admin en la tabla `users` (Prisma / bcrypt).
  *
- * Requisitos (una de estas formas):
- *   - .env.local o .env en la raíz con NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY
- *   - O exportar esas dos variables en la terminal antes de npm run create-admin
- *
+ * Requisitos: DATABASE_URL en .env.local o .env
  * Uso: npm run create-admin
  *
  * Opcional: ADMIN_EMAIL, ADMIN_PASSWORD
  */
 
-import { createClient } from "@supabase/supabase-js";
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
+import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 function loadEnvFile(name) {
   const p = resolve(process.cwd(), name);
@@ -39,64 +37,39 @@ function loadEnvFile(name) {
 loadEnvFile(".env.local");
 loadEnvFile(".env");
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const email = (process.env.ADMIN_EMAIL || "admin@complejofrentealmar.local").trim().toLowerCase();
+const password = process.env.ADMIN_PASSWORD || "ComplejoMar2026!Admin";
 
-const email =
-  process.env.ADMIN_EMAIL || "admin@complejofrentealmar.local";
-const password =
-  process.env.ADMIN_PASSWORD || "ComplejoMar2026!Admin";
-
-if (!url || !serviceKey) {
-  const miss = [];
-  if (!url) miss.push("NEXT_PUBLIC_SUPABASE_URL");
-  if (!serviceKey) miss.push("SUPABASE_SERVICE_ROLE_KEY");
-  console.error("\n❌ Faltan: " + miss.join(" y ") + "\n");
-  console.error(
-    "Solo definiste ADMIN_EMAIL / ADMIN_PASSWORD; hacen falta también la URL del proyecto y la clave service_role.\n"
-  );
-  console.error("Opción A — Creá o editá el archivo .env.local en la raíz del repo (junto a package.json):\n");
-  console.error("  NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co");
-  console.error("  NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...   (opcional para Next, pero recomendado)");
-  console.error("  SUPABASE_SERVICE_ROLE_KEY=eyJ...       (Project Settings → API → service_role, SECRETO)\n");
-  console.error("Opción B — PowerShell, en la MISMA ventana antes de npm run create-admin:\n");
-  console.error('  $env:NEXT_PUBLIC_SUPABASE_URL="https://xxxx.supabase.co"');
-  console.error('  $env:SUPABASE_SERVICE_ROLE_KEY="eyJ..."');
-  console.error("  npm run create-admin\n");
-  console.error("Las claves están en: https://supabase.com/dashboard → tu proyecto → Settings → API\n");
+if (!process.env.DATABASE_URL?.trim()) {
+  console.error("\n❌ Falta DATABASE_URL (Neon / PostgreSQL).\n");
+  console.error("Definilo en .env.local junto a DIRECT_URL si usás Prisma Migrate.\n");
   process.exit(1);
 }
 
-const supabase = createClient(url, serviceKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
+const prisma = new PrismaClient();
 
-const { data, error } = await supabase.auth.admin.createUser({
-  email,
-  password,
-  email_confirm: true,
-});
-
-if (error) {
-  if (
-    error.message?.includes("already been registered") ||
-    error.message?.includes("already registered")
-  ) {
-    console.log("\nℹ️  Ese email ya existe en Supabase Auth.\n");
-    console.log("   Email:", email);
-    console.log(
-      "   Si no recordás la contraseña: Dashboard → Authentication → Users → Reset password\n"
-    );
-    process.exit(0);
+try {
+  const hash = await bcrypt.hash(password, 10);
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    await prisma.user.update({
+      where: { email },
+      data: { password: hash, role: "ADMIN" },
+    });
+    console.log("\n✅ Usuario admin actualizado (contraseña renovada).\n");
+  } else {
+    await prisma.user.create({
+      data: { email, password: hash, role: "ADMIN" },
+    });
+    console.log("\n✅ Usuario admin creado.\n");
   }
-  console.error("\n❌", error.message);
+  console.log("   Email:       ", email);
+  console.log("   Contraseña:  ", password);
+  console.log("\n   Entrá en: http://localhost:3000/admin/login (o tu URL de deploy)");
+  console.log("   Cambiá la contraseña en producción.\n");
+} catch (e) {
+  console.error("\n❌", e instanceof Error ? e.message : e);
   process.exit(1);
+} finally {
+  await prisma.$disconnect();
 }
-
-console.log("\n✅ Usuario admin creado en Supabase.\n");
-console.log("   Email:       ", email);
-console.log("   Contraseña:  ", password);
-console.log(
-  "\n   Entrá en: http://localhost:3000/admin/login (o tu URL de deploy)\n" +
-    "   Cambiá la contraseña en producción.\n"
-);

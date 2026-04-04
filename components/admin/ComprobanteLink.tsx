@@ -1,7 +1,7 @@
 "use client";
 
 import { FileText, Image as ImageIcon } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 
 function isPdf(pathOrUrl: string): boolean {
   return pathOrUrl.toLowerCase().includes(".pdf");
@@ -11,15 +11,13 @@ function isImage(pathOrUrl: string): boolean {
   return /\.(jpe?g|png|gif|webp)$/i.test(pathOrUrl);
 }
 
-/**
- * Abre comprobante en nueva pestaña (URL absoluta o ruta en bucket `archivos`).
- */
+/** Abre comprobante en nueva pestaña si es una URL https pública. */
 export function ComprobanteLink({ pathOrUrl }: { pathOrUrl: string | null }) {
   if (!pathOrUrl) {
     return <span className="text-muted-foreground">—</span>;
   }
 
-  async function openFile(e: React.MouseEvent) {
+  function openFile(e: React.MouseEvent) {
     e.preventDefault();
     const path = pathOrUrl;
     if (!path) return;
@@ -27,15 +25,7 @@ export function ComprobanteLink({ pathOrUrl }: { pathOrUrl: string | null }) {
       window.open(path, "_blank", "noopener,noreferrer");
       return;
     }
-    const supabase = createClient();
-    const { data, error } = await supabase.storage
-      .from("archivos")
-      .createSignedUrl(path, 3600);
-    if (error || !data?.signedUrl) {
-      console.error(error);
-      return;
-    }
-    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    toast.error("Solo se pueden abrir comprobantes con URL https. Subí el archivo de nuevo desde el panel.");
   }
 
   const pdf = isPdf(pathOrUrl);

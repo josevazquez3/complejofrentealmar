@@ -1,25 +1,20 @@
 import { AdminShell } from "@/components/admin/AdminShell";
-import { getInventarioStats, getTesoreriaStats } from "@/lib/queries";
-import { createClient } from "@/lib/supabase/server";
+import { getInventarioStats, getPendingReservasCount, getTesoreriaStats } from "@/lib/queries";
 
 export default async function AdminPanelLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const [{ count }, invStats, tesStats] = await Promise.all([
-    supabase
-      .from("reservas")
-      .select("*", { count: "exact", head: true })
-      .eq("estado", "pendiente"),
+  const [pendingReservas, invStats, tesStats] = await Promise.all([
+    getPendingReservasCount(),
     getInventarioStats(),
     getTesoreriaStats(),
   ]);
 
   return (
     <AdminShell
-      pendingReservas={count ?? 0}
+      pendingReservas={pendingReservas}
       inventarioStockBajo={invStats.itemsStockBajo}
       tesoreriaBalanceNegativo={tesStats.balance < 0}
     >

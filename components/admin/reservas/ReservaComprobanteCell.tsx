@@ -1,8 +1,8 @@
 "use client";
 
 import { FaFilePdf, FaImage } from "react-icons/fa";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { createClient } from "@/lib/supabase/client";
 
 function isPdf(pathOrUrl: string): boolean {
   return pathOrUrl.toLowerCase().includes(".pdf");
@@ -21,20 +21,14 @@ export function ReservaComprobanteCell({ pathOrUrl }: { pathOrUrl: string | null
     );
   }
 
-  async function openDoc(e: React.MouseEvent) {
+  function openDoc(e: React.MouseEvent) {
     e.preventDefault();
     if (!pathOrUrl) return;
-    const path = pathOrUrl;
-    if (path.startsWith("http")) {
-      window.open(path, "_blank", "noopener,noreferrer");
+    if (pathOrUrl.startsWith("http")) {
+      window.open(pathOrUrl, "_blank", "noopener,noreferrer");
       return;
     }
-    const supabase = createClient();
-    const { data, error } = await supabase.storage
-      .from("archivos")
-      .createSignedUrl(path, 3600);
-    if (error || !data?.signedUrl) return;
-    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    toast.error("Solo se pueden abrir comprobantes con URL https. Volvé a subirlo desde editar reserva.");
   }
 
   const pdf = isPdf(pathOrUrl);

@@ -1,5 +1,7 @@
 import { cache } from "react";
-import { createClient } from "./supabase/server";
+import { unstable_cache } from "next/cache";
+import { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import type { InicioConfig, SeccionTexto, SeccionTextoId, Unidad } from "@/types/configuracion";
 import type {
   Casa,
@@ -22,23 +24,145 @@ import type {
   TesoreriaStats,
   TipoMovimiento,
 } from "@/types";
-import { env } from "@/lib/env";
 
-function hasSupabaseEnv(): boolean {
-  return Boolean(env.supabaseUrl.length && env.supabaseAnonKey.length);
+function hasDb(): boolean {
+  return Boolean(process.env.DATABASE_URL?.trim());
+}
+
+function ymd(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function mapCasa(c: {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  capacidadPersonas: number;
+  fotos: string[];
+  activa: boolean;
+  createdAt: Date;
+}): Casa {
+  return {
+    id: c.id,
+    nombre: c.nombre,
+    descripcion: c.descripcion,
+    capacidad_personas: c.capacidadPersonas,
+    fotos: c.fotos?.length ? c.fotos : null,
+    activa: c.activa,
+    created_at: c.createdAt.toISOString(),
+  };
+}
+
+function mapConfig(row: {
+  id: string;
+  complejoNombre: string;
+  tagline: string | null;
+  descripcionHome: string | null;
+  ubicacionDireccion: string | null;
+  mapaQuery: string | null;
+  whatsappE164: string | null;
+  emailContacto: string | null;
+  facebookUrl: string | null;
+  instagramUrl: string | null;
+  updatedAt: Date;
+}): Configuracion {
+  return {
+    id: row.id,
+    complejo_nombre: row.complejoNombre,
+    tagline: row.tagline,
+    descripcion_home: row.descripcionHome,
+    ubicacion_direccion: row.ubicacionDireccion,
+    mapa_query: row.mapaQuery,
+    whatsapp_e164: row.whatsappE164,
+    email_contacto: row.emailContacto,
+    facebook_url: row.facebookUrl,
+    instagram_url: row.instagramUrl,
+    updated_at: row.updatedAt.toISOString(),
+  };
+}
+
+function mapReservaBase(r: {
+  id: string;
+  casaId: string;
+  fechaDesde: Date;
+  fechaHasta: Date;
+  cantPersonas: number;
+  mascotas: number;
+  comprobanteUrl: string | null;
+  saldoReserva: Prisma.Decimal | null;
+  createdAt: Date;
+  nombre: string | null;
+  apellido: string | null;
+  email: string | null;
+  telefono: string | null;
+  mensaje: string | null;
+  estado: string;
+}): Reserva {
+  const fd = ymd(r.fechaDesde);
+  const fh = ymd(r.fechaHasta);
+  return {
+    id: r.id,
+    casa_id: r.casaId,
+    fecha_desde: fd,
+    fecha_hasta: fh,
+    cant_personas: r.cantPersonas,
+    mascotas: r.mascotas,
+    comprobante_url: r.comprobanteUrl,
+    saldo_reserva: r.saldoReserva != null ? Number(r.saldoReserva) : null,
+    created_at: r.createdAt.toISOString(),
+    nombre: r.nombre,
+    apellido: r.apellido,
+    email: r.email,
+    telefono: r.telefono,
+    mensaje: r.mensaje,
+    estado: r.estado as Reserva["estado"],
+    noches: Math.max(0, Math.round((r.fechaHasta.getTime() - r.fechaDesde.getTime()) / 86400000)),
+  };
+}
+
+/** KPIs del layout admin (reservas pendientes). */
+export async function getPendingReservasCount(): Promise<number> {
+  if (!hasDb()) return 0;
+  try {
+    return await prisma.reserva.count({ where: { estado: "pendiente" } });
+  } catch {
+    return 0;
+  }
+}
+
+/** Contadores del dashboard admin (mes en curso por fecha_desde). */
+export async function getAdminDashboardStats(): Promise<{
+  reservasMes: number;
+  reservasPendientes: number;
+  casasActivas: number;
+}> {
+  if (!hasDb()) {
+    return { reservasMes: 0, reservasPendientes: 0, casasActivas: 0 };
+  }
+  try {
+    const now = new Date();
+    const from = new Date(now.getFullYear(), now.getMonth(), 1);
+    const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const [reservasMes, reservasPendientes, casasActivas] = await Promise.all([
+      prisma.reserva.count({
+        where: {
+          fechaDesde: { gte: from, lte: to },
+        },
+      }),
+      prisma.reserva.count({ where: { estado: "pendiente" } }),
+      prisma.casa.count({ where: { activa: true } }),
+    ]);
+    return { reservasMes, reservasPendientes, casasActivas };
+  } catch {
+    return { reservasMes: 0, reservasPendientes: 0, casasActivas: 0 };
+  }
 }
 
 export const getConfiguracion = cache(async (): Promise<Configuracion | null> => {
-  if (!hasSupabaseEnv()) return null;
+  if (!hasDb()) return null;
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("configuracion")
-      .select("*")
-      .limit(1)
-      .maybeSingle();
-    if (error) return null;
-    return data as Configuracion | null;
+    const row = await prisma.configuracion.findFirst();
+    return row ? mapConfig(row) : null;
   } catch {
     return null;
   }
@@ -47,16 +171,13 @@ export const getConfiguracion = cache(async (): Promise<Configuracion | null> =>
 export type CasasLoadResult = { casas: Casa[]; failed: boolean };
 
 export const getCasasActivasForHome = cache(async (): Promise<CasasLoadResult> => {
-  if (!hasSupabaseEnv()) return { casas: [], failed: false };
+  if (!hasDb()) return { casas: [], failed: false };
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("casas")
-      .select("*")
-      .eq("activa", true)
-      .order("nombre");
-    if (error) return { casas: [], failed: true };
-    return { casas: (data ?? []) as Casa[], failed: false };
+    const rows = await prisma.casa.findMany({
+      where: { activa: true },
+      orderBy: { nombre: "asc" },
+    });
+    return { casas: rows.map(mapCasa), failed: false };
   } catch {
     return { casas: [], failed: true };
   }
@@ -68,60 +189,45 @@ export const getCasasActivas = cache(async (): Promise<Casa[]> => {
 });
 
 export const getCasaById = cache(async (id: string): Promise<Casa | null> => {
-  if (!hasSupabaseEnv()) return null;
+  if (!hasDb()) return null;
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("casas")
-      .select("*")
-      .eq("id", id)
-      .eq("activa", true)
-      .maybeSingle();
-    if (error) return null;
-    return data as Casa | null;
+    const c = await prisma.casa.findFirst({ where: { id, activa: true } });
+    return c ? mapCasa(c) : null;
   } catch {
     return null;
   }
 });
 
-/** Otras unidades activas para la página de detalle (excluye la actual). */
 export const getOtrasCasas = cache(async (excludeId: string): Promise<CasaListItem[]> => {
-  if (!hasSupabaseEnv()) return [];
+  if (!hasDb()) return [];
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("casas")
-      .select("id, nombre, descripcion, fotos")
-      .neq("id", excludeId)
-      .eq("activa", true)
-      .order("nombre")
-      .limit(3);
-    if (error) return [];
-    return (data ?? []) as CasaListItem[];
+    const rows = await prisma.casa.findMany({
+      where: { activa: true, id: { not: excludeId } },
+      select: { id: true, nombre: true, descripcion: true, fotos: true },
+      orderBy: { nombre: "asc" },
+      take: 3,
+    });
+    return rows as CasaListItem[];
   } catch {
     return [];
   }
 });
 
-/** URLs del carrusel: `carousel_images` si hay filas; si no, fotos de casas activas. */
 export async function getHeroImageUrls(): Promise<string[]> {
   try {
-    if (!hasSupabaseEnv()) {
+    if (!hasDb()) {
       const casas = await getCasasActivas();
       const urls = casas.flatMap((c) => c.fotos ?? []).filter(Boolean);
       return Array.from(new Set(urls));
     }
     try {
-      const supabase = await createClient();
-      const { data, error } = await supabase
-        .from("carousel_images")
-        .select("url")
-        .order("orden", { ascending: true });
-      if (!error && data && data.length > 0) {
-        return data.map((r) => r.url).filter(Boolean);
-      }
+      const rows = await prisma.carouselImage.findMany({
+        orderBy: { orden: "asc" },
+        select: { url: true },
+      });
+      if (rows.length > 0) return rows.map((r) => r.url).filter(Boolean);
     } catch {
-      /* tabla ausente, red, timeout */
+      /* */
     }
     const casas = await getCasasActivas();
     const urls = casas.flatMap((c) => c.fotos ?? []).filter(Boolean);
@@ -131,31 +237,40 @@ export async function getHeroImageUrls(): Promise<string[]> {
   }
 }
 
-/** Bloque Inicio (página pública). */
 export const getInicioMarketing = cache(async (): Promise<InicioConfig | null> => {
-  if (!hasSupabaseEnv()) return null;
+  if (!hasDb()) return null;
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase.from("inicio_config").select("*").limit(1).maybeSingle();
-    if (error) return null;
-    return data as InicioConfig | null;
+    const row = await prisma.inicioConfig.findFirst();
+    if (!row) return null;
+    return {
+      id: row.id,
+      titulo: row.titulo,
+      descripcion: row.descripcion,
+      fotos: row.fotos ?? [],
+      updated_at: row.updatedAt.toISOString(),
+    };
   } catch {
     return null;
   }
 });
 
-/** Unidades de marketing habilitadas (página pública). */
 export const getUnidadesMarketing = cache(async (): Promise<Unidad[]> => {
-  if (!hasSupabaseEnv()) return [];
+  if (!hasDb()) return [];
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("unidades")
-      .select("*")
-      .eq("habilitada", true)
-      .order("orden", { ascending: true });
-    if (error) return [];
-    return (data ?? []) as Unidad[];
+    const rows = await prisma.unidad.findMany({
+      where: { habilitada: true },
+      orderBy: [{ orden: "asc" }, { createdAt: "asc" }],
+    });
+    return rows.map((u) => ({
+      id: u.id,
+      titulo: u.titulo,
+      descripcion: u.descripcion,
+      fotos: u.fotos ?? [],
+      habilitada: u.habilitada,
+      orden: u.orden,
+      created_at: u.createdAt.toISOString(),
+      updated_at: u.updatedAt.toISOString(),
+    }));
   } catch {
     return [];
   }
@@ -178,50 +293,53 @@ export const SECCION_PUBLIC_FALLBACK: Record<SeccionTextoId, SeccionTexto> = {
   },
 };
 
-/**
- * Texto público Equipamiento / Servicios. `fetch` con revalidate 60 (sin cookies → compatible con Data Cache).
- */
 export async function getSeccionTextoPublic(id: SeccionTextoId): Promise<SeccionTexto> {
   const fb = SECCION_PUBLIC_FALLBACK[id];
-  if (!hasSupabaseEnv()) return fb;
+  if (!hasDb()) return fb;
+
   try {
-    const res = await fetch(
-      `${env.supabaseUrl}/rest/v1/secciones_texto?id=eq.${encodeURIComponent(id)}&select=id,titulo,descripcion,updated_at`,
-      {
-        headers: {
-          apikey: env.supabaseAnonKey,
-          Authorization: `Bearer ${env.supabaseAnonKey}`,
-        },
-        next: { revalidate: 60 },
-      }
+    const cached = unstable_cache(
+      async () => {
+        const row = await prisma.seccionTexto.findUnique({ where: { id } });
+        if (!row) return null;
+        return {
+          id: row.id as SeccionTextoId,
+          titulo: row.titulo,
+          descripcion: row.descripcion,
+          updated_at: row.updatedAt.toISOString(),
+        } satisfies SeccionTexto;
+      },
+      ["seccion-texto-public", id],
+      { revalidate: 60 }
     );
-    if (!res.ok) return fb;
-    const rows = (await res.json()) as SeccionTexto[];
-    return rows[0] ?? fb;
+    const v = await cached();
+    return v ?? fb;
   } catch {
     return fb;
   }
 }
 
-/** Casas activas para el flujo público de reservas. */
 export const getCasasParaReservas = cache(async (): Promise<Casa[]> => {
   const { casas } = await getCasasActivasForHome();
   return casas;
 });
 
-/** Rangos ocupados (pendiente o confirmada) vía RPC — no expone datos sensibles. */
 export async function getFechasBloqueadas(casaId: string): Promise<FechaBloqueada[]> {
-  if (!hasSupabaseEnv()) return [];
+  if (!hasDb()) return [];
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase.rpc("get_fechas_bloqueadas", {
-      p_casa_id: casaId,
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const rows = await prisma.reserva.findMany({
+      where: {
+        casaId,
+        estado: { in: ["pendiente", "confirmada"] },
+        fechaHasta: { gte: today },
+      },
+      select: { fechaDesde: true, fechaHasta: true },
     });
-    if (error) return [];
-    const rows = (data ?? []) as { fecha_desde: string; fecha_hasta: string }[];
     return rows.map((r) => ({
-      fecha_desde: String(r.fecha_desde).slice(0, 10),
-      fecha_hasta: String(r.fecha_hasta).slice(0, 10),
+      fecha_desde: ymd(r.fechaDesde),
+      fecha_hasta: ymd(r.fechaHasta),
     }));
   } catch {
     return [];
@@ -232,26 +350,22 @@ export async function insertarReserva(
   reserva: ReservaInsert,
   estado: EstadoReserva = "pendiente"
 ): Promise<Reserva> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("reservas")
-    .insert({
-      casa_id: reserva.casa_id,
+  const r = await prisma.reserva.create({
+    data: {
+      casaId: reserva.casa_id,
+      fechaDesde: new Date(reserva.fecha_desde),
+      fechaHasta: new Date(reserva.fecha_hasta),
+      cantPersonas: reserva.personas,
       nombre: reserva.nombre,
       apellido: reserva.apellido,
       email: reserva.email,
       telefono: reserva.telefono,
-      fecha_desde: reserva.fecha_desde,
-      fecha_hasta: reserva.fecha_hasta,
-      cant_personas: reserva.personas,
       mensaje: reserva.mensaje ?? null,
       mascotas: 0,
       estado,
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data as Reserva;
+    },
+  });
+  return mapReservaBase(r);
 }
 
 const RESERVAS_PAGE_SIZE = 10;
@@ -261,82 +375,111 @@ export async function getReservasAdminPage(
 ): Promise<{ rows: ReservaConCasa[]; total: number; pageSize: number }> {
   const pageSize = RESERVAS_PAGE_SIZE;
   const safePage = Math.max(1, page);
-  if (!hasSupabaseEnv()) {
+  if (!hasDb()) {
     return { rows: [], total: 0, pageSize };
   }
   try {
-    const supabase = await createClient();
-    const from = (safePage - 1) * pageSize;
-    const to = from + pageSize - 1;
-    const { data, error, count } = await supabase
-      .from("reservas")
-      .select("*, casas(id, nombre, capacidad_personas)", { count: "exact" })
-      .order("created_at", { ascending: false })
-      .range(from, to);
-    if (error) {
-      return { rows: [], total: 0, pageSize };
-    }
-    return {
-      rows: (data ?? []) as ReservaConCasa[],
-      total: count ?? 0,
-      pageSize,
-    };
+    const skip = (safePage - 1) * pageSize;
+    const [rows, total] = await Promise.all([
+      prisma.reserva.findMany({
+        include: { casa: { select: { id: true, nombre: true, capacidadPersonas: true } } },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: pageSize,
+      }),
+      prisma.reserva.count(),
+    ]);
+    const mapped: ReservaConCasa[] = rows.map((row) => ({
+      ...mapReservaBase(row),
+      casas: row.casa
+        ? {
+            id: row.casa.id,
+            nombre: row.casa.nombre,
+            capacidad_personas: row.casa.capacidadPersonas,
+          }
+        : null,
+    }));
+    return { rows: mapped, total, pageSize };
   } catch {
     return { rows: [], total: 0, pageSize };
   }
 }
 
 export async function getReservasAdmin(): Promise<ReservaAdmin[]> {
-  if (!hasSupabaseEnv()) return [];
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("reservas")
-    .select("*, casas(id, nombre)")
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as ReservaAdmin[];
+  if (!hasDb()) return [];
+  const rows = await prisma.reserva.findMany({
+    include: { casa: { select: { id: true, nombre: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+  return rows.map((row) => ({
+    ...mapReservaBase(row),
+    casas: row.casa ? { id: row.casa.id, nombre: row.casa.nombre } : null,
+  }));
 }
 
 export async function getReservaById(id: string): Promise<ReservaAdmin | null> {
-  if (!hasSupabaseEnv()) return null;
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("reservas")
-    .select("*, casas(id, nombre)")
-    .eq("id", id)
-    .maybeSingle();
-  if (error) return null;
-  return (data ?? null) as ReservaAdmin | null;
+  if (!hasDb()) return null;
+  const row = await prisma.reserva.findUnique({
+    where: { id },
+    include: { casa: { select: { id: true, nombre: true } } },
+  });
+  if (!row) return null;
+  return {
+    ...mapReservaBase(row),
+    casas: row.casa ? { id: row.casa.id, nombre: row.casa.nombre } : null,
+  };
 }
 
 export async function updateEstadoReserva(id: string, estado: EstadoReserva): Promise<void> {
-  const supabase = await createClient();
-  const { error } = await supabase.from("reservas").update({ estado }).eq("id", id);
-  if (error) throw error;
+  await prisma.reserva.update({ where: { id }, data: { estado } });
 }
 
 export async function deleteReserva(id: string): Promise<void> {
-  const supabase = await createClient();
-  const { error } = await supabase.from("reservas").delete().eq("id", id);
-  if (error) throw error;
+  await prisma.reserva.delete({ where: { id } });
 }
 
-const INVENTARIO_SELECT = `
-  *,
-  inventario_categorias(id, nombre, icono),
-  casas(id, nombre)
-`;
+const INV_INCLUDE = {
+  categoria: true,
+  casa: { select: { id: true, nombre: true } },
+} as const;
+
+function mapInventarioItem(row: Prisma.InventarioItemGetPayload<{ include: typeof INV_INCLUDE }>): InventarioItem {
+  return {
+    id: row.id,
+    casa_id: row.casaId,
+    categoria_id: row.categoriaId,
+    nombre: row.nombre,
+    descripcion: row.descripcion,
+    cantidad: row.cantidad,
+    cantidad_min: row.cantidadMin,
+    unidad: row.unidad as InventarioItem["unidad"],
+    estado: row.estado as InventarioItem["estado"],
+    ubicacion: row.ubicacion,
+    activo: row.activo,
+    created_at: row.createdAt.toISOString(),
+    updated_at: row.updatedAt.toISOString(),
+    inventario_categorias: row.categoria
+      ? {
+          id: row.categoria.id,
+          nombre: row.categoria.nombre,
+          icono: row.categoria.icono,
+          created_at: row.categoria.createdAt.toISOString(),
+        }
+      : null,
+    casas: row.casa,
+  };
+}
 
 export async function getCategorias(): Promise<InventarioCategoria[]> {
-  if (!hasSupabaseEnv()) return [];
+  if (!hasDb()) return [];
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("inventario_categorias")
-      .select("*")
-      .order("nombre");
-    if (error) return [];
-    return (data ?? []) as InventarioCategoria[];
+    const rows = await prisma.inventarioCategoria.findMany({ orderBy: { nombre: "asc" } });
+    return rows.map((c) => ({
+      id: c.id,
+      nombre: c.nombre,
+      icono: c.icono,
+      created_at: c.createdAt.toISOString(),
+    }));
   } catch {
     return [];
   }
@@ -361,101 +504,96 @@ export async function getInventarioItems(params: {
     pageSize = 20,
   } = params;
 
-  if (!hasSupabaseEnv()) {
-    return { data: [], count: 0 };
-  }
+  if (!hasDb()) return { data: [], count: 0 };
+
+  const where: Prisma.InventarioItemWhereInput = {
+    activo: true,
+    ...(casaId ? { casaId } : {}),
+    ...(categoriaId ? { categoriaId } : {}),
+    ...(estado ? { estado } : {}),
+    ...(busqueda?.trim() ? { nombre: { contains: busqueda.trim(), mode: "insensitive" } } : {}),
+  };
 
   try {
-    const supabase = await createClient();
-    let query = supabase
-      .from("inventario_items")
-      .select(INVENTARIO_SELECT, { count: "exact" })
-      .eq("activo", true)
-      .order("nombre");
-
-    if (casaId) query = query.eq("casa_id", casaId);
-    if (categoriaId) query = query.eq("categoria_id", categoriaId);
-    if (estado) query = query.eq("estado", estado);
-    if (busqueda?.trim()) query = query.ilike("nombre", `%${busqueda.trim()}%`);
-
     if (soloStockBajo) {
-      const { data: raw, error } = await query;
-      if (error) throw error;
-      const rows = (raw ?? []) as InventarioItem[];
-      const filtered = rows.filter((i) => i.cantidad <= i.cantidad_min);
+      const all = await prisma.inventarioItem.findMany({
+        where,
+        include: INV_INCLUDE,
+        orderBy: { nombre: "asc" },
+      });
+      const filtered = all.filter((i) => i.cantidad <= i.cantidadMin).map(mapInventarioItem);
       const from = (page - 1) * pageSize;
-      return {
-        data: filtered.slice(from, from + pageSize),
-        count: filtered.length,
-      };
+      return { data: filtered.slice(from, from + pageSize), count: filtered.length };
     }
 
-    const from = (page - 1) * pageSize;
-    query = query.range(from, from + pageSize - 1);
-    const { data, count, error } = await query;
-    if (error) throw error;
-    return { data: (data ?? []) as InventarioItem[], count: count ?? 0 };
+    const skip = (page - 1) * pageSize;
+    const [raw, count] = await Promise.all([
+      prisma.inventarioItem.findMany({
+        where,
+        include: INV_INCLUDE,
+        orderBy: { nombre: "asc" },
+        skip,
+        take: pageSize,
+      }),
+      prisma.inventarioItem.count({ where }),
+    ]);
+    return { data: raw.map(mapInventarioItem), count };
   } catch {
     return { data: [], count: 0 };
   }
 }
 
-/** Listado sin paginar (vista por unidad / export). */
 export async function getInventarioItemsSinPaginar(params: {
   casaId?: string;
   categoriaId?: string;
   estado?: EstadoItem;
   busqueda?: string;
 }): Promise<InventarioItem[]> {
-  if (!hasSupabaseEnv()) return [];
+  if (!hasDb()) return [];
+  const where: Prisma.InventarioItemWhereInput = {
+    activo: true,
+    ...(params.casaId ? { casaId: params.casaId } : {}),
+    ...(params.categoriaId ? { categoriaId: params.categoriaId } : {}),
+    ...(params.estado ? { estado: params.estado } : {}),
+    ...(params.busqueda?.trim()
+      ? { nombre: { contains: params.busqueda.trim(), mode: "insensitive" } }
+      : {}),
+  };
   try {
-    const supabase = await createClient();
-    let query = supabase
-      .from("inventario_items")
-      .select(INVENTARIO_SELECT)
-      .eq("activo", true)
-      .order("nombre");
-
-    const { casaId, categoriaId, estado, busqueda } = params;
-    if (casaId) query = query.eq("casa_id", casaId);
-    if (categoriaId) query = query.eq("categoria_id", categoriaId);
-    if (estado) query = query.eq("estado", estado);
-    if (busqueda?.trim()) query = query.ilike("nombre", `%${busqueda.trim()}%`);
-
-    const { data, error } = await query;
-    if (error) throw error;
-    return (data ?? []) as InventarioItem[];
+    const rows = await prisma.inventarioItem.findMany({
+      where,
+      include: INV_INCLUDE,
+      orderBy: { nombre: "asc" },
+    });
+    return rows.map(mapInventarioItem);
   } catch {
     return [];
   }
 }
 
 export async function getInventarioItemById(id: string): Promise<InventarioItemConMovimientos | null> {
-  if (!hasSupabaseEnv()) return null;
-  const supabase = await createClient();
-  const { data: row, error } = await supabase
-    .from("inventario_items")
-    .select(
-      `
-      *,
-      inventario_categorias(id, nombre, icono),
-      casas(id, nombre)
-    `
-    )
-    .eq("id", id)
-    .maybeSingle();
-
-  if (error || !row) return null;
-
-  const { data: movs } = await supabase
-    .from("inventario_movimientos")
-    .select("*")
-    .eq("item_id", id)
-    .order("created_at", { ascending: false });
-
+  if (!hasDb()) return null;
+  const row = await prisma.inventarioItem.findUnique({
+    where: { id },
+    include: INV_INCLUDE,
+  });
+  if (!row) return null;
+  const movs = await prisma.inventarioMovimiento.findMany({
+    where: { itemId: id },
+    orderBy: { createdAt: "desc" },
+  });
   return {
-    ...(row as InventarioItem),
-    inventario_movimientos: (movs ?? []) as InventarioItemConMovimientos["inventario_movimientos"],
+    ...mapInventarioItem(row),
+    inventario_movimientos: movs.map((m) => ({
+      id: m.id,
+      item_id: m.itemId,
+      tipo: m.tipo as TipoMovimiento,
+      cantidad: m.cantidad,
+      cantidad_anterior: m.cantidadAnterior,
+      cantidad_nueva: m.cantidadNueva,
+      motivo: m.motivo,
+      created_at: m.createdAt.toISOString(),
+    })),
   };
 }
 
@@ -465,46 +603,42 @@ export type InventarioItemInsert = Omit<
 >;
 
 export async function createInventarioItem(item: InventarioItemInsert): Promise<InventarioItem> {
-  const supabase = await createClient();
-  const payload = {
-    casa_id: item.casa_id,
-    categoria_id: item.categoria_id ?? null,
-    nombre: item.nombre,
-    descripcion: item.descripcion ?? null,
-    cantidad: item.cantidad,
-    cantidad_min: item.cantidad_min,
-    unidad: item.unidad,
-    estado: item.estado,
-    ubicacion: item.ubicacion ?? null,
-    activo: item.activo,
-  };
-  const { data, error } = await supabase.from("inventario_items").insert(payload).select().single();
-  if (error) throw error;
-  return data as InventarioItem;
+  const row = await prisma.inventarioItem.create({
+    data: {
+      casaId: item.casa_id,
+      categoriaId: item.categoria_id ?? null,
+      nombre: item.nombre,
+      descripcion: item.descripcion ?? null,
+      cantidad: item.cantidad,
+      cantidadMin: item.cantidad_min,
+      unidad: item.unidad,
+      estado: item.estado,
+      ubicacion: item.ubicacion ?? null,
+      activo: item.activo,
+    },
+    include: INV_INCLUDE,
+  });
+  return mapInventarioItem(row);
 }
 
 export async function updateInventarioItem(id: string, item: Partial<InventarioItem>): Promise<void> {
-  const supabase = await createClient();
-  const allowed: Record<string, unknown> = {};
-  if (item.casa_id !== undefined) allowed.casa_id = item.casa_id;
-  if (item.categoria_id !== undefined) allowed.categoria_id = item.categoria_id;
-  if (item.nombre !== undefined) allowed.nombre = item.nombre;
-  if (item.descripcion !== undefined) allowed.descripcion = item.descripcion;
-  if (item.cantidad !== undefined) allowed.cantidad = item.cantidad;
-  if (item.cantidad_min !== undefined) allowed.cantidad_min = item.cantidad_min;
-  if (item.unidad !== undefined) allowed.unidad = item.unidad;
-  if (item.estado !== undefined) allowed.estado = item.estado;
-  if (item.ubicacion !== undefined) allowed.ubicacion = item.ubicacion;
-  if (item.activo !== undefined) allowed.activo = item.activo;
-
-  const { error } = await supabase.from("inventario_items").update(allowed).eq("id", id);
-  if (error) throw error;
+  const data: Prisma.InventarioItemUpdateInput = {};
+  if (item.casa_id !== undefined) data.casa = { connect: { id: item.casa_id } };
+  if (item.categoria_id !== undefined)
+    data.categoria = item.categoria_id ? { connect: { id: item.categoria_id } } : { disconnect: true };
+  if (item.nombre !== undefined) data.nombre = item.nombre;
+  if (item.descripcion !== undefined) data.descripcion = item.descripcion;
+  if (item.cantidad !== undefined) data.cantidad = item.cantidad;
+  if (item.cantidad_min !== undefined) data.cantidadMin = item.cantidad_min;
+  if (item.unidad !== undefined) data.unidad = item.unidad;
+  if (item.estado !== undefined) data.estado = item.estado;
+  if (item.ubicacion !== undefined) data.ubicacion = item.ubicacion;
+  if (item.activo !== undefined) data.activo = item.activo;
+  await prisma.inventarioItem.update({ where: { id }, data });
 }
 
 export async function deleteInventarioItem(id: string): Promise<void> {
-  const supabase = await createClient();
-  const { error } = await supabase.from("inventario_items").update({ activo: false }).eq("id", id);
-  if (error) throw error;
+  await prisma.inventarioItem.update({ where: { id }, data: { activo: false } });
 }
 
 export async function registrarMovimiento(mov: {
@@ -515,16 +649,16 @@ export async function registrarMovimiento(mov: {
   cantidad_nueva: number;
   motivo?: string;
 }): Promise<void> {
-  const supabase = await createClient();
-  const { error } = await supabase.from("inventario_movimientos").insert({
-    item_id: mov.item_id,
-    tipo: mov.tipo,
-    cantidad: mov.cantidad,
-    cantidad_anterior: mov.cantidad_anterior,
-    cantidad_nueva: mov.cantidad_nueva,
-    motivo: mov.motivo ?? null,
+  await prisma.inventarioMovimiento.create({
+    data: {
+      itemId: mov.item_id,
+      tipo: mov.tipo,
+      cantidad: mov.cantidad,
+      cantidadAnterior: mov.cantidad_anterior,
+      cantidadNueva: mov.cantidad_nueva,
+      motivo: mov.motivo ?? null,
+    },
   });
-  if (error) throw error;
 }
 
 export async function getInventarioStats(): Promise<InventarioStats> {
@@ -534,25 +668,17 @@ export async function getInventarioStats(): Promise<InventarioStats> {
     itemsMalEstado: 0,
     totalCasas: 0,
   };
-  if (!hasSupabaseEnv()) return empty;
+  if (!hasDb()) return empty;
   try {
-    const supabase = await createClient();
-    const { data: items, error } = await supabase
-      .from("inventario_items")
-      .select("cantidad, cantidad_min, estado, casa_id")
-      .eq("activo", true);
-    if (error) return empty;
-    const all = (items ?? []) as {
-      cantidad: number;
-      cantidad_min: number;
-      estado: string;
-      casa_id: string;
-    }[];
+    const items = await prisma.inventarioItem.findMany({
+      where: { activo: true },
+      select: { cantidad: true, cantidadMin: true, estado: true, casaId: true },
+    });
     return {
-      totalItems: all.length,
-      itemsStockBajo: all.filter((i) => i.cantidad <= i.cantidad_min).length,
-      itemsMalEstado: all.filter((i) => ["malo", "dado_de_baja"].includes(i.estado)).length,
-      totalCasas: new Set(all.map((i) => i.casa_id)).size,
+      totalItems: items.length,
+      itemsStockBajo: items.filter((i) => i.cantidad <= i.cantidadMin).length,
+      itemsMalEstado: items.filter((i) => ["malo", "dado_de_baja"].includes(i.estado)).length,
+      totalCasas: new Set(items.map((i) => i.casaId)).size,
     };
   } catch {
     return empty;
@@ -560,38 +686,71 @@ export async function getInventarioStats(): Promise<InventarioStats> {
 }
 
 export async function getAllInventarioItemsForExport(): Promise<InventarioItem[]> {
-  if (!hasSupabaseEnv()) return [];
+  if (!hasDb()) return [];
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("inventario_items")
-      .select(INVENTARIO_SELECT)
-      .eq("activo", true)
-      .order("nombre");
-    if (error) throw error;
-    return (data ?? []) as InventarioItem[];
+    const rows = await prisma.inventarioItem.findMany({
+      where: { activo: true },
+      include: INV_INCLUDE,
+      orderBy: { nombre: "asc" },
+    });
+    return rows.map(mapInventarioItem);
   } catch {
     return [];
   }
 }
 
-const TESORERIA_SELECT = `
-  *,
-  tesoreria_categorias(id, nombre, icono, tipo),
-  casas(id, nombre),
-  reservas(id, nombre, apellido)
-`;
+const TES_INCLUDE = {
+  categoria: true,
+  casa: { select: { id: true, nombre: true } },
+  reserva: { select: { id: true, nombre: true, apellido: true } },
+} as const;
+
+function mapTesoreriaMov(
+  row: Prisma.TesoreriaMovimientoGetPayload<{ include: typeof TES_INCLUDE }>
+): TesoreriaMovimiento {
+  return {
+    id: row.id,
+    fecha: ymd(row.fecha),
+    tipo: row.tipo as TesoreriaMovimiento["tipo"],
+    categoria_id: row.categoriaId,
+    casa_id: row.casaId,
+    reserva_id: row.reservaId,
+    concepto: row.concepto,
+    monto: Number(row.monto),
+    metodo_pago: row.metodoPago as TesoreriaMovimiento["metodo_pago"],
+    comprobante: row.comprobante,
+    notas: row.notas,
+    created_at: row.createdAt.toISOString(),
+    updated_at: row.updatedAt.toISOString(),
+    tesoreria_categorias: row.categoria
+      ? {
+          id: row.categoria.id,
+          nombre: row.categoria.nombre,
+          tipo: row.categoria.tipo as TesoreriaCat["tipo"],
+          icono: row.categoria.icono,
+        }
+      : null,
+    casas: row.casa,
+    reservas: row.reserva
+      ? {
+          id: row.reserva.id,
+          nombre: row.reserva.nombre,
+          apellido: row.reserva.apellido,
+        }
+      : null,
+  };
+}
 
 export async function getTesoreriaCategorias(): Promise<TesoreriaCat[]> {
-  if (!hasSupabaseEnv()) return [];
+  if (!hasDb()) return [];
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("tesoreria_categorias")
-      .select("*")
-      .order("nombre");
-    if (error) return [];
-    return (data ?? []) as TesoreriaCat[];
+    const rows = await prisma.tesoreriaCategoria.findMany({ orderBy: { nombre: "asc" } });
+    return rows.map((c) => ({
+      id: c.id,
+      nombre: c.nombre,
+      tipo: c.tipo as TesoreriaCat["tipo"],
+      icono: c.icono,
+    }));
   } catch {
     return [];
   }
@@ -601,7 +760,7 @@ export async function getTesoreriaMovimientos(
   filtros: TesoreriaFiltros = {}
 ): Promise<{ data: TesoreriaMovimiento[]; count: number }> {
   const empty = { data: [] as TesoreriaMovimiento[], count: 0 };
-  if (!hasSupabaseEnv()) return empty;
+  if (!hasDb()) return empty;
 
   const {
     tipo,
@@ -615,32 +774,38 @@ export async function getTesoreriaMovimientos(
     pageSize = 20,
   } = filtros;
 
+  const fechaWhere =
+    fechaDesde || fechaHasta
+      ? {
+          fecha: {
+            ...(fechaDesde ? { gte: new Date(fechaDesde) } : {}),
+            ...(fechaHasta ? { lte: new Date(fechaHasta) } : {}),
+          },
+        }
+      : {};
+
+  const where: Prisma.TesoreriaMovimientoWhereInput = {
+    ...(tipo ? { tipo } : {}),
+    ...(casaId ? { casaId } : {}),
+    ...(categoriaId ? { categoriaId } : {}),
+    ...(metodoPago ? { metodoPago } : {}),
+    ...fechaWhere,
+    ...(busqueda?.trim() ? { concepto: { contains: busqueda.trim(), mode: "insensitive" } } : {}),
+  };
+
   try {
-    const supabase = await createClient();
-    let q = supabase
-      .from("tesoreria_movimientos")
-      .select(TESORERIA_SELECT, { count: "exact" })
-      .order("fecha", { ascending: false })
-      .order("created_at", { ascending: false });
-
-    if (tipo) q = q.eq("tipo", tipo);
-    if (casaId) q = q.eq("casa_id", casaId);
-    if (categoriaId) q = q.eq("categoria_id", categoriaId);
-    if (metodoPago) q = q.eq("metodo_pago", metodoPago);
-    if (fechaDesde) q = q.gte("fecha", fechaDesde);
-    if (fechaHasta) q = q.lte("fecha", fechaHasta);
-    if (busqueda?.trim()) q = q.ilike("concepto", `%${busqueda.trim()}%`);
-
-    const from = (page - 1) * pageSize;
-    q = q.range(from, from + pageSize - 1);
-
-    const { data, count, error } = await q;
-    if (error) throw error;
-    const rows = (data ?? []) as TesoreriaMovimiento[];
-    return {
-      data: rows.map((r) => ({ ...r, monto: Number(r.monto) })),
-      count: count ?? 0,
-    };
+    const skip = (page - 1) * pageSize;
+    const [rows, count] = await Promise.all([
+      prisma.tesoreriaMovimiento.findMany({
+        where,
+        include: TES_INCLUDE,
+        orderBy: [{ fecha: "desc" }, { createdAt: "desc" }],
+        skip,
+        take: pageSize,
+      }),
+      prisma.tesoreriaMovimiento.count({ where }),
+    ]);
+    return { data: rows.map(mapTesoreriaMov), count };
   } catch {
     return empty;
   }
@@ -649,26 +814,33 @@ export async function getTesoreriaMovimientos(
 export async function getTesoreriaMovimientosSinPaginar(
   filtros: Omit<TesoreriaFiltros, "page" | "pageSize"> = {}
 ): Promise<TesoreriaMovimiento[]> {
-  if (!hasSupabaseEnv()) return [];
+  if (!hasDb()) return [];
+  const { tipo, casaId, categoriaId, metodoPago, fechaDesde, fechaHasta, busqueda } = filtros;
+  const fechaWhere =
+    fechaDesde || fechaHasta
+      ? {
+          fecha: {
+            ...(fechaDesde ? { gte: new Date(fechaDesde) } : {}),
+            ...(fechaHasta ? { lte: new Date(fechaHasta) } : {}),
+          },
+        }
+      : {};
+  const where: Prisma.TesoreriaMovimientoWhereInput = {
+    ...(tipo ? { tipo } : {}),
+    ...(casaId ? { casaId } : {}),
+    ...(categoriaId ? { categoriaId } : {}),
+    ...(metodoPago ? { metodoPago } : {}),
+    ...fechaWhere,
+    ...(busqueda?.trim() ? { concepto: { contains: busqueda.trim(), mode: "insensitive" } } : {}),
+  };
   try {
-    const supabase = await createClient();
-    const { tipo, casaId, categoriaId, metodoPago, fechaDesde, fechaHasta, busqueda } = filtros;
-    let q = supabase
-      .from("tesoreria_movimientos")
-      .select(TESORERIA_SELECT)
-      .order("fecha", { ascending: false })
-      .order("created_at", { ascending: false });
-
-    if (tipo) q = q.eq("tipo", tipo);
-    if (casaId) q = q.eq("casa_id", casaId);
-    if (categoriaId) q = q.eq("categoria_id", categoriaId);
-    if (metodoPago) q = q.eq("metodo_pago", metodoPago);
-    if (fechaDesde) q = q.gte("fecha", fechaDesde);
-    if (fechaHasta) q = q.lte("fecha", fechaHasta);
-    if (busqueda?.trim()) q = q.ilike("concepto", `%${busqueda.trim()}%`);
-    const { data, error } = await q.limit(10000);
-    if (error) throw error;
-    return ((data ?? []) as TesoreriaMovimiento[]).map((r) => ({ ...r, monto: Number(r.monto) }));
+    const rows = await prisma.tesoreriaMovimiento.findMany({
+      where,
+      include: TES_INCLUDE,
+      orderBy: [{ fecha: "desc" }, { createdAt: "desc" }],
+      take: 10000,
+    });
+    return rows.map(mapTesoreriaMov);
   } catch {
     return [];
   }
@@ -684,28 +856,27 @@ export async function getTesoreriaStats(): Promise<TesoreriaStats> {
     egresosMes: 0,
     balanceMes: 0,
   };
-  if (!hasSupabaseEnv()) return zero;
+  if (!hasDb()) return zero;
 
   try {
-    const supabase = await createClient();
-    const { data: todos, error } = await supabase.from("tesoreria_movimientos").select("tipo, monto, fecha");
-    if (error) return zero;
+    const todos = await prisma.tesoreriaMovimiento.findMany({
+      select: { tipo: true, monto: true, fecha: true },
+    });
 
     const hoy = new Date();
-    const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().slice(0, 10);
-    const hoyStr = hoy.toISOString().slice(0, 10);
+    const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    const hoyStr = ymd(hoy);
 
-    const all = (todos ?? []) as { tipo: string; monto: string | number; fecha: string }[];
-    const sum = (arr: typeof all, t: string) =>
+    const sum = (arr: typeof todos, t: string) =>
       arr.filter((m) => m.tipo === t).reduce((acc, m) => acc + Number(m.monto), 0);
 
-    const mes = all.filter((m) => m.fecha >= primerDiaMes && m.fecha <= hoyStr);
+    const mes = todos.filter((m) => m.fecha >= primerDiaMes && ymd(m.fecha) <= hoyStr);
 
     return {
-      totalIngresos: sum(all, "ingreso"),
-      totalEgresos: sum(all, "egreso"),
-      balance: sum(all, "ingreso") - sum(all, "egreso"),
-      cantMovimientos: all.length,
+      totalIngresos: sum(todos, "ingreso"),
+      totalEgresos: sum(todos, "egreso"),
+      balance: sum(todos, "ingreso") - sum(todos, "egreso"),
+      cantMovimientos: todos.length,
       ingresosMes: sum(mes, "ingreso"),
       egresosMes: sum(mes, "egreso"),
       balanceMes: sum(mes, "ingreso") - sum(mes, "egreso"),
@@ -716,17 +887,13 @@ export async function getTesoreriaStats(): Promise<TesoreriaStats> {
 }
 
 export async function getTesoreriaMovimientoById(id: string): Promise<TesoreriaMovimiento | null> {
-  if (!hasSupabaseEnv()) return null;
+  if (!hasDb()) return null;
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("tesoreria_movimientos")
-      .select(TESORERIA_SELECT)
-      .eq("id", id)
-      .maybeSingle();
-    if (error || !data) return null;
-    const row = data as TesoreriaMovimiento;
-    return { ...row, monto: Number(row.monto) };
+    const row = await prisma.tesoreriaMovimiento.findUnique({
+      where: { id },
+      include: TES_INCLUDE,
+    });
+    return row ? mapTesoreriaMov(row) : null;
   } catch {
     return null;
   }
@@ -738,47 +905,44 @@ export type TesoreriaMovimientoInsert = Omit<
 >;
 
 export async function createTesoreriaMovimiento(mov: TesoreriaMovimientoInsert): Promise<TesoreriaMovimiento> {
-  const supabase = await createClient();
-  const payload = {
-    fecha: mov.fecha,
-    tipo: mov.tipo,
-    categoria_id: mov.categoria_id ?? null,
-    casa_id: mov.casa_id ?? null,
-    reserva_id: mov.reserva_id ?? null,
-    concepto: mov.concepto,
-    monto: mov.monto,
-    metodo_pago: mov.metodo_pago,
-    comprobante: mov.comprobante ?? null,
-    notas: mov.notas ?? null,
-  };
-  const { data, error } = await supabase.from("tesoreria_movimientos").insert(payload).select().single();
-  if (error) throw error;
-  const row = data as TesoreriaMovimiento;
-  return { ...row, monto: Number(row.monto) };
+  const row = await prisma.tesoreriaMovimiento.create({
+    data: {
+      fecha: new Date(mov.fecha),
+      tipo: mov.tipo,
+      categoriaId: mov.categoria_id ?? null,
+      casaId: mov.casa_id ?? null,
+      reservaId: mov.reserva_id ?? null,
+      concepto: mov.concepto,
+      monto: mov.monto,
+      metodoPago: mov.metodo_pago,
+      comprobante: mov.comprobante ?? null,
+      notas: mov.notas ?? null,
+    },
+    include: TES_INCLUDE,
+  });
+  return mapTesoreriaMov(row);
 }
 
 export async function updateTesoreriaMovimiento(id: string, mov: Partial<TesoreriaMovimiento>): Promise<void> {
-  const supabase = await createClient();
-  const allowed: Record<string, unknown> = {};
-  if (mov.fecha !== undefined) allowed.fecha = mov.fecha;
-  if (mov.tipo !== undefined) allowed.tipo = mov.tipo;
-  if (mov.categoria_id !== undefined) allowed.categoria_id = mov.categoria_id;
-  if (mov.casa_id !== undefined) allowed.casa_id = mov.casa_id;
-  if (mov.reserva_id !== undefined) allowed.reserva_id = mov.reserva_id;
-  if (mov.concepto !== undefined) allowed.concepto = mov.concepto;
-  if (mov.monto !== undefined) allowed.monto = mov.monto;
-  if (mov.metodo_pago !== undefined) allowed.metodo_pago = mov.metodo_pago;
-  if (mov.comprobante !== undefined) allowed.comprobante = mov.comprobante;
-  if (mov.notas !== undefined) allowed.notas = mov.notas;
-
-  const { error } = await supabase.from("tesoreria_movimientos").update(allowed).eq("id", id);
-  if (error) throw error;
+  const data: Prisma.TesoreriaMovimientoUpdateInput = {};
+  if (mov.fecha !== undefined) data.fecha = new Date(mov.fecha);
+  if (mov.tipo !== undefined) data.tipo = mov.tipo;
+  if (mov.categoria_id !== undefined)
+    data.categoria = mov.categoria_id ? { connect: { id: mov.categoria_id } } : { disconnect: true };
+  if (mov.casa_id !== undefined)
+    data.casa = mov.casa_id ? { connect: { id: mov.casa_id } } : { disconnect: true };
+  if (mov.reserva_id !== undefined)
+    data.reserva = mov.reserva_id ? { connect: { id: mov.reserva_id } } : { disconnect: true };
+  if (mov.concepto !== undefined) data.concepto = mov.concepto;
+  if (mov.monto !== undefined) data.monto = mov.monto;
+  if (mov.metodo_pago !== undefined) data.metodoPago = mov.metodo_pago;
+  if (mov.comprobante !== undefined) data.comprobante = mov.comprobante;
+  if (mov.notas !== undefined) data.notas = mov.notas;
+  await prisma.tesoreriaMovimiento.update({ where: { id }, data });
 }
 
 export async function deleteTesoreriaMovimiento(id: string): Promise<void> {
-  const supabase = await createClient();
-  const { error } = await supabase.from("tesoreria_movimientos").delete().eq("id", id);
-  if (error) throw error;
+  await prisma.tesoreriaMovimiento.delete({ where: { id } });
 }
 
 export async function getAllTesoreriaMovimientos(
@@ -787,21 +951,18 @@ export async function getAllTesoreriaMovimientos(
   return getTesoreriaMovimientosSinPaginar(filtros);
 }
 
-/** Reservas de una casa (selector en movimiento de tesorería). */
 export async function getReservasPorCasaParaTesoreria(
   casaId: string
 ): Promise<{ id: string; nombre: string | null; apellido: string | null }[]> {
-  if (!hasSupabaseEnv() || !casaId) return [];
+  if (!hasDb() || !casaId) return [];
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("reservas")
-      .select("id, nombre, apellido")
-      .eq("casa_id", casaId)
-      .order("fecha_desde", { ascending: false })
-      .limit(200);
-    if (error) return [];
-    return (data ?? []) as { id: string; nombre: string | null; apellido: string | null }[];
+    const rows = await prisma.reserva.findMany({
+      where: { casaId },
+      select: { id: true, nombre: true, apellido: true },
+      orderBy: { fechaDesde: "desc" },
+      take: 200,
+    });
+    return rows;
   } catch {
     return [];
   }

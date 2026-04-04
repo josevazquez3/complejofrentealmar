@@ -1,7 +1,11 @@
 import { ReservasAdminClient } from "@/components/admin/reservas/ReservasAdminClient";
-import { createClient } from "@/lib/supabase/server";
-import { getReservasAdminPage } from "@/lib/queries";
+import { getCasasActivas, getReservasAdminPage } from "@/lib/queries";
+import { prisma } from "@/lib/prisma";
 import type { Casa, EstadoReserva, ReservaAdmin } from "@/types";
+
+function ymd(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
 
 export const dynamic = "force-dynamic";
 
@@ -20,33 +24,30 @@ export default async function AdminReservasPage({ searchParams }: PageProps) {
       ? estadoStr
       : "todos";
 
-  const [{ rows, total, pageSize }, supabase] = await Promise.all([
+  const [{ rows, total, pageSize }, casas, kpiRowsRaw] = await Promise.all([
     getReservasAdminPage(page),
-    createClient(),
+    getCasasActivas(),
+    prisma.reserva.findMany({ select: { estado: true, fechaDesde: true } }),
   ]);
 
-  const { data: casasData } = await supabase
-    .from("casas")
-    .select("*")
-    .eq("activa", true)
-    .order("nombre");
-
-  const { data: kpiRows } = await supabase.from("reservas").select("estado, fecha_desde");
   const hoy = new Date().toISOString().split("T")[0];
-  const list = (kpiRows ?? []) as { estado: EstadoReserva | null; fecha_desde: string }[];
+  const list = kpiRowsRaw.map((r) => ({
+    estado: r.estado as EstadoReserva | null,
+    fecha_desde: ymd(r.fechaDesde),
+  }));
   const pendientes = list.filter((r) => (r.estado ?? "pendiente") === "pendiente").length;
   const confirmadas = list.filter((r) => r.estado === "confirmada").length;
   const canceladas = list.filter((r) => r.estado === "cancelada").length;
   const proximas = list.filter((r) => r.estado === "confirmada" && r.fecha_desde >= hoy).length;
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const casas = (casasData ?? []) as Casa[];
+  const casasTyped = casas as Casa[];
   const reservas = (rows ?? []) as unknown as ReservaAdmin[];
 
   return (
     <ReservasAdminClient
       reservas={reservas}
-      casasActivas={casas}
+      casasActivas={casasTyped}
       currentPage={page}
       totalPages={totalPages}
       total={total}

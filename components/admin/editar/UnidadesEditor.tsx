@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ImagePlus, Loader2, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { ImagePlus, Loader2, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   createUnidad,
@@ -34,10 +34,10 @@ function snippet(text: string, max = 100) {
   return `${t.slice(0, max).trim()}…`;
 }
 
-function pathFromComplejoMediaUrl(url: string): string | null {
-  const idx = url.indexOf("/complejo-media/");
-  if (idx === -1) return null;
-  return decodeURIComponent(url.slice(idx + "/complejo-media/".length).split("?")[0] ?? "");
+function pathForStorageDelete(url: string): string | null {
+  const u = url.trim();
+  if (!u || !u.startsWith("http")) return null;
+  return u.split("?")[0] ?? u;
 }
 
 export function UnidadesEditor({ initial }: { initial: Unidad[] }) {
@@ -82,7 +82,10 @@ export function UnidadesEditor({ initial }: { initial: Unidad[] }) {
     const run = async () => {
       setBusy("upload");
       try {
-        const { url } = await uploadImage(pendingFile, "unidades");
+        const fd = new FormData();
+        fd.append("file", pendingFile);
+        fd.append("folder", "unidades");
+        const { url } = await uploadImage(fd);
         setFotos((f) => {
           const next = [...f, url];
           if (next.length > 8) {
@@ -102,7 +105,7 @@ export function UnidadesEditor({ initial }: { initial: Unidad[] }) {
 
   const removeFotoAt = async (i: number) => {
     const url = fotos[i];
-    const path = pathFromComplejoMediaUrl(url);
+    const path = pathForStorageDelete(url);
     setBusy(`rf-${i}`);
     try {
       if (path) await deleteImage(path);
@@ -320,7 +323,7 @@ export function UnidadesEditor({ initial }: { initial: Unidad[] }) {
                 </label>
                 {pendingFile ? (
                   <>
-                    <span className="max-w-[140px] truncate text-xs text-nautico-600">{pendingFile.name}</span>
+                    <span className="max-w-[min(200px,40vw)] truncate text-xs text-nautico-600">{pendingFile.name}</span>
                     <Button
                       type="button"
                       size="sm"
@@ -330,6 +333,16 @@ export function UnidadesEditor({ initial }: { initial: Unidad[] }) {
                     >
                       {busy === "upload" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                       Subir
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={busy !== null}
+                      onClick={() => setPendingFile(null)}
+                    >
+                      <X className="mr-1 h-3.5 w-3.5" />
+                      Otra foto
                     </Button>
                   </>
                 ) : null}

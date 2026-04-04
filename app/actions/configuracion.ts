@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { Prisma } from "@prisma/client";
 import { getServerUser } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+import { deleteFromBlob, uploadToBlob } from "@/lib/blob";
+import { prisma } from "@/lib/prisma";
 import type {
   CarouselImage,
   InicioConfig,
@@ -28,8 +30,6 @@ const SECCION_DEFAULTS: Record<SeccionTextoId, SeccionTexto> = {
   },
 };
 
-const BUCKET = "complejo-media";
-
 async function requireUser() {
   const user = await getServerUser();
   if (!user) throw new Error("No autorizado");
@@ -41,49 +41,54 @@ function revalidateComplejo() {
   revalidatePath("/");
 }
 
-export async function uploadImage(
-  file: File,
-  folder: string
-): Promise<{ url: string; path: string }> {
+function mapCarousel(row: {
+  id: string;
+  url: string;
+  storagePath: string;
+  orden: number;
+  createdAt: Date;
+}): CarouselImage {
+  return {
+    id: row.id,
+    url: row.url,
+    storage_path: row.storagePath,
+    orden: row.orden,
+    created_at: row.createdAt.toISOString(),
+  };
+}
+
+/**
+ * Subida vía FormData: Next.js no permite pasar `File` como argumento directo a Server Actions.
+ */
+export async function uploadImage(formData: FormData): Promise<{ url: string; path: string }> {
   await requireUser();
-  if (!file || !file.size) throw new Error("Archivo vacío");
+  const raw = formData.get("file");
+  const folder = String(formData.get("folder") ?? "").trim();
+  if (!(raw instanceof File)) throw new Error("Archivo inválido");
+  const file = raw;
+  if (!file.size) throw new Error("Archivo vacío");
   if (!file.type.startsWith("image/")) throw new Error("Solo se permiten imágenes");
   if (file.size > 8 * 1024 * 1024) throw new Error("Máximo 8 MB por imagen");
 
-  const supabase = await createClient();
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
   const safeFolder = folder.replace(/[^a-z0-9/_-]/gi, "").slice(0, 40) || "misc";
-  const path = `${safeFolder}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+  const pathname = `${safeFolder}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
 
   const buf = Buffer.from(await file.arrayBuffer());
-  const { error } = await supabase.storage.from(BUCKET).upload(path, buf, {
-    contentType: file.type || "image/jpeg",
-    upsert: false,
-  });
-  if (error) throw new Error(error.message);
-
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return { url: publicUrl, path };
+  const { url } = await uploadToBlob(pathname, buf, file.type || "image/jpeg");
+  return { url, path: url };
 }
 
-export async function deleteImage(storagePath: string): Promise<void> {
+export async function deleteImage(storagePathOrUrl: string): Promise<void> {
   await requireUser();
-  if (!storagePath?.trim()) return;
-  const supabase = await createClient();
-  await supabase.storage.from(BUCKET).remove([storagePath]);
+  if (!storagePathOrUrl?.trim()) return;
+  await deleteFromBlob(storagePathOrUrl);
 }
 
 export async function getCarouselImages(): Promise<CarouselImage[]> {
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("carousel_images")
-      .select("*")
-      .order("orden", { ascending: true });
-    if (error) return [];
-    return (data ?? []) as CarouselImage[];
+    const rows = await prisma.carouselImage.findMany({ orderBy: { orden: "asc" } });
+    return rows.map(mapCarousel);
   } catch {
     return [];
   }
@@ -96,39 +101,36 @@ export async function saveCarouselImages(
   if (images.length === 0) throw new Error("Agregá al menos una imagen al carrusel");
   if (images.length > 10) throw new Error("Máximo 10 imágenes");
 
-  const supabase = await createClient();
-  const { data: existing, error: selErr } = await supabase
-    .from("carousel_images")
-    .select("id, storage_path");
-  if (selErr) throw new Error(selErr.message);
+  const existing = await prisma.carouselImage.findMany({
+    select: { id: true, storagePath: true },
+  });
 
   const newPaths = new Set(images.map((i) => i.path));
-  for (const row of existing ?? []) {
-    if (!newPaths.has(row.storage_path)) {
-      await supabase.storage.from(BUCKET).remove([row.storage_path]);
-      await supabase.from("carousel_images").delete().eq("id", row.id);
+  for (const row of existing) {
+    if (!newPaths.has(row.storagePath)) {
+      try {
+        await deleteFromBlob(row.storagePath);
+      } catch {
+        /* ya borrado o URL legacy */
+      }
+      await prisma.carouselImage.delete({ where: { id: row.id } });
     }
   }
 
   for (const img of images) {
-    const { data: row } = await supabase
-      .from("carousel_images")
-      .select("id")
-      .eq("storage_path", img.path)
-      .maybeSingle();
-    if (row?.id) {
-      const { error } = await supabase
-        .from("carousel_images")
-        .update({ url: img.url, orden: img.orden })
-        .eq("id", row.id);
-      if (error) throw new Error(error.message);
-    } else {
-      const { error } = await supabase.from("carousel_images").insert({
-        url: img.url,
-        storage_path: img.path,
-        orden: img.orden,
+    const found = await prisma.carouselImage.findFirst({
+      where: { storagePath: img.path },
+      select: { id: true },
+    });
+    if (found) {
+      await prisma.carouselImage.update({
+        where: { id: found.id },
+        data: { url: img.url, orden: img.orden },
       });
-      if (error) throw new Error(error.message);
+    } else {
+      await prisma.carouselImage.create({
+        data: { url: img.url, storagePath: img.path, orden: img.orden },
+      });
     }
   }
 
@@ -137,10 +139,15 @@ export async function saveCarouselImages(
 
 export async function getInicioConfig(): Promise<InicioConfig | null> {
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase.from("inicio_config").select("*").limit(1).maybeSingle();
-    if (error || !data) return null;
-    return data as InicioConfig;
+    const row = await prisma.inicioConfig.findFirst();
+    if (!row) return null;
+    return {
+      id: row.id,
+      titulo: row.titulo,
+      descripcion: row.descripcion,
+      fotos: row.fotos ?? [],
+      updated_at: row.updatedAt.toISOString(),
+    };
   } catch {
     return null;
   }
@@ -156,33 +163,25 @@ export async function saveInicioConfig(data: {
   if (!titulo) throw new Error("El título es obligatorio");
   const fotosLimpias = data.fotos.slice(0, 4).map((f) => String(f).trim()).filter(Boolean);
 
-  const supabase = await createClient();
-  const { data: existing, error: selErr } = await supabase
-    .from("inicio_config")
-    .select("id")
-    .limit(1)
-    .maybeSingle();
-  if (selErr) throw new Error(selErr.message);
+  const first = await prisma.inicioConfig.findFirst({ select: { id: true } });
 
-  if (!existing?.id) {
-    const { error } = await supabase.from("inicio_config").insert({
-      titulo,
-      descripcion: data.descripcion,
-      fotos: fotosLimpias,
-      updated_at: new Date().toISOString(),
-    });
-    if (error) throw new Error(error.message);
-  } else {
-    const { error } = await supabase
-      .from("inicio_config")
-      .update({
+  if (!first) {
+    await prisma.inicioConfig.create({
+      data: {
         titulo,
         descripcion: data.descripcion,
         fotos: fotosLimpias,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", existing.id);
-    if (error) throw new Error(error.message);
+      },
+    });
+  } else {
+    await prisma.inicioConfig.update({
+      where: { id: first.id },
+      data: {
+        titulo,
+        descripcion: data.descripcion,
+        fotos: fotosLimpias,
+      },
+    });
   }
 
   revalidateComplejo();
@@ -190,14 +189,19 @@ export async function saveInicioConfig(data: {
 
 export async function getUnidades(): Promise<Unidad[]> {
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("unidades")
-      .select("*")
-      .order("orden", { ascending: true })
-      .order("created_at", { ascending: true }); // desempate
-    if (error) return [];
-    return (data ?? []) as Unidad[];
+    const rows = await prisma.unidad.findMany({
+      orderBy: [{ orden: "asc" }, { createdAt: "asc" }],
+    });
+    return rows.map((u) => ({
+      id: u.id,
+      titulo: u.titulo,
+      descripcion: u.descripcion,
+      fotos: u.fotos ?? [],
+      habilitada: u.habilitada,
+      orden: u.orden,
+      created_at: u.createdAt.toISOString(),
+      updated_at: u.updatedAt.toISOString(),
+    }));
   } catch {
     return [];
   }
@@ -212,72 +216,67 @@ export async function createUnidad(data: {
   const titulo = data.titulo.trim();
   if (!titulo) throw new Error("El título es obligatorio");
 
-  const supabase = await createClient();
-  const { data: maxRow } = await supabase
-    .from("unidades")
-    .select("orden")
-    .order("orden", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const orden = (maxRow?.orden ?? -1) + 1;
+  const agg = await prisma.unidad.aggregate({ _max: { orden: true } });
+  const orden = (agg._max.orden ?? -1) + 1;
 
-  const { data: row, error } = await supabase
-    .from("unidades")
-    .insert({
+  const row = await prisma.unidad.create({
+    data: {
       titulo,
       descripcion: data.descripcion.trim(),
       fotos: data.fotos.filter(Boolean),
       habilitada: true,
       orden,
-      updated_at: new Date().toISOString(),
-    })
-    .select("*")
-    .single();
-  if (error) throw new Error(error.message);
+    },
+  });
+
   revalidateComplejo();
-  return row as Unidad;
+  return {
+    id: row.id,
+    titulo: row.titulo,
+    descripcion: row.descripcion,
+    fotos: row.fotos ?? [],
+    habilitada: row.habilitada,
+    orden: row.orden,
+    created_at: row.createdAt.toISOString(),
+    updated_at: row.updatedAt.toISOString(),
+  };
 }
 
 export async function updateUnidad(id: string, data: Partial<Unidad>): Promise<void> {
   await requireUser();
-  const supabase = await createClient();
-  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  const patch: Prisma.UnidadUpdateInput = {};
   if (data.titulo !== undefined) patch.titulo = data.titulo.trim();
   if (data.descripcion !== undefined) patch.descripcion = data.descripcion;
   if (data.fotos !== undefined) patch.fotos = data.fotos;
   if (data.orden !== undefined) patch.orden = data.orden;
   if (data.habilitada !== undefined) patch.habilitada = data.habilitada;
 
-  const { error } = await supabase.from("unidades").update(patch).eq("id", id);
-  if (error) throw new Error(error.message);
+  await prisma.unidad.update({ where: { id }, data: patch });
   revalidateComplejo();
 }
 
 export async function toggleUnidad(id: string, habilitada: boolean): Promise<void> {
   await requireUser();
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("unidades")
-    .update({ habilitada, updated_at: new Date().toISOString() })
-    .eq("id", id);
-  if (error) throw new Error(error.message);
+  await prisma.unidad.update({ where: { id }, data: { habilitada } });
   revalidateComplejo();
 }
 
 export async function deleteUnidad(id: string): Promise<void> {
   await requireUser();
-  const supabase = await createClient();
-  const { error } = await supabase.from("unidades").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  await prisma.unidad.delete({ where: { id } });
   revalidateComplejo();
 }
 
 export async function getSeccionTexto(id: SeccionTextoId): Promise<SeccionTexto> {
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase.from("secciones_texto").select("*").eq("id", id).maybeSingle();
-    if (error || !data) return SECCION_DEFAULTS[id];
-    return data as SeccionTexto;
+    const row = await prisma.seccionTexto.findUnique({ where: { id } });
+    if (!row) return SECCION_DEFAULTS[id];
+    return {
+      id: row.id as SeccionTextoId,
+      titulo: row.titulo,
+      descripcion: row.descripcion,
+      updated_at: row.updatedAt.toISOString(),
+    };
   } catch {
     return SECCION_DEFAULTS[id];
   }
@@ -289,17 +288,20 @@ export async function saveSeccionTexto(
 ): Promise<void> {
   await requireUser();
   const tid = id === "servicios" ? "servicios" : "equipamiento";
-  const supabase = await createClient();
-  const { error } = await supabase.from("secciones_texto").upsert(
-    {
+
+  await prisma.seccionTexto.upsert({
+    where: { id: tid },
+    create: {
       id: tid,
       titulo: data.titulo.trim(),
       descripcion: data.descripcion.trim(),
-      updated_at: new Date().toISOString(),
     },
-    { onConflict: "id" }
-  );
-  if (error) throw new Error(error.message);
+    update: {
+      titulo: data.titulo.trim(),
+      descripcion: data.descripcion.trim(),
+    },
+  });
+
   revalidatePath("/");
   revalidatePath("/admin/configuracion/editar");
 }

@@ -1,4 +1,4 @@
-/** Tipos de dominio y filas de Supabase (alinear con `supabase gen types`). */
+/** Tipos de dominio y filas alineadas con Prisma / PostgreSQL. */
 
 export type {
   CarouselImage,

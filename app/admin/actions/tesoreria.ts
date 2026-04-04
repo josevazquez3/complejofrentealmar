@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
 
 export type TesoreriaFormState = { ok: boolean; message?: string };
 
@@ -13,29 +13,35 @@ export async function upsertTesoreria(form: {
   saldo: number | null;
   comprobante_url: string | null;
 }): Promise<TesoreriaFormState> {
-  const supabase = await createClient();
-  const row = {
-    casa_id: form.casa_id || null,
-    reserva_id: form.reserva_id || null,
+  const data = {
+    casaId: form.casa_id || null,
+    reservaId: form.reserva_id || null,
     diferencia: form.diferencia,
     saldo: form.saldo,
-    comprobante_url: form.comprobante_url,
+    comprobanteUrl: form.comprobante_url,
   };
-  if (form.id) {
-    const { error } = await supabase.from("tesoreria").update(row).eq("id", form.id);
-    if (error) return { ok: false, message: error.message };
-  } else {
-    const { error } = await supabase.from("tesoreria").insert(row);
-    if (error) return { ok: false, message: error.message };
+  try {
+    if (form.id) {
+      await prisma.tesoreriaLegacy.update({
+        where: { id: form.id },
+        data,
+      });
+    } else {
+      await prisma.tesoreriaLegacy.create({ data });
+    }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Error al guardar." };
   }
   revalidatePath("/admin/tesoreria");
   return { ok: true };
 }
 
 export async function deleteTesoreria(id: string): Promise<TesoreriaFormState> {
-  const supabase = await createClient();
-  const { error } = await supabase.from("tesoreria").delete().eq("id", id);
-  if (error) return { ok: false, message: error.message };
+  try {
+    await prisma.tesoreriaLegacy.delete({ where: { id } });
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Error al eliminar." };
+  }
   revalidatePath("/admin/tesoreria");
   return { ok: true };
 }

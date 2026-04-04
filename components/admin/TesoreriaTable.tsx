@@ -41,8 +41,8 @@ import {
 import type { ReservaListaItem, TesoreriaConRelaciones } from "@/types";
 import { formatCurrencyAR, formatDateAR, parseARSInput } from "@/lib/format";
 import { exportToExcel } from "@/lib/excel";
-import { createClient } from "@/lib/supabase/client";
 import { deleteTesoreria, upsertTesoreria } from "@/app/admin/actions/tesoreria";
+import { uploadAdminComprobante } from "@/app/admin/actions/upload-comprobante";
 import { ComprobanteLink } from "./ComprobanteLink";
 
 type CasaOpt = { id: string; nombre: string };
@@ -107,16 +107,16 @@ export function TesoreriaTable({
       return null;
     }
     setUploading(true);
-    const supabase = createClient();
-    const path = `comprobantes/${crypto.randomUUID()}.${ext}`;
-    const { error } = await supabase.storage.from("archivos").upload(path, file);
+    const fd = new FormData();
+    fd.set("file", file);
+    const res = await uploadAdminComprobante(fd);
     setUploading(false);
-    if (error) {
-      toast.error(error.message);
+    if (!res.ok) {
+      toast.error(res.message);
       return null;
     }
     toast.success("Comprobante subido");
-    return path;
+    return res.url;
   }
 
   async function onSave(e: React.FormEvent) {

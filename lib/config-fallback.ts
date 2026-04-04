@@ -1,6 +1,6 @@
 import type { Configuracion } from "@/types";
 
-/** Valores por defecto si falla Supabase o no hay fila. */
+/** Valores por defecto si falla la lectura desde la BD o no hay fila. */
 export const CONFIG_FALLBACK: Configuracion = {
   id: "00000000-0000-0000-0000-000000000000",
   complejo_nombre: "Complejo Frente al Mar",

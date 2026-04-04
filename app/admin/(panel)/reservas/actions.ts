@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { uploadToBlob } from "@/lib/blob";
+import { prisma } from "@/lib/prisma";
 import { parseARSInput } from "@/lib/format";
 import { deleteReserva, insertarReserva, updateEstadoReserva } from "@/lib/queries";
 import type { ActionResult, EstadoReserva, ReservaConCasa, ReservaInsert } from "@/types";
@@ -18,13 +19,40 @@ function todayLocalYmd(): string {
 
 export async function fetchReservasForExport(): Promise<ReservaConCasa[]> {
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("reservas")
-      .select("*, casas(id, nombre, capacidad_personas)")
-      .order("created_at", { ascending: false });
-    if (error) return [];
-    return (data ?? []) as ReservaConCasa[];
+    const rows = await prisma.reserva.findMany({
+      include: {
+        casa: { select: { id: true, nombre: true, capacidadPersonas: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      casa_id: row.casaId,
+      fecha_desde: row.fechaDesde.toISOString().slice(0, 10),
+      fecha_hasta: row.fechaHasta.toISOString().slice(0, 10),
+      cant_personas: row.cantPersonas,
+      mascotas: row.mascotas,
+      comprobante_url: row.comprobanteUrl,
+      saldo_reserva: row.saldoReserva != null ? Number(row.saldoReserva) : null,
+      created_at: row.createdAt.toISOString(),
+      nombre: row.nombre,
+      apellido: row.apellido,
+      email: row.email,
+      telefono: row.telefono,
+      mensaje: row.mensaje,
+      estado: row.estado as ReservaConCasa["estado"],
+      noches: Math.max(
+        0,
+        Math.round((row.fechaHasta.getTime() - row.fechaDesde.getTime()) / 86400000)
+      ),
+      casas: row.casa
+        ? {
+            id: row.casa.id,
+            nombre: row.casa.nombre,
+            capacidad_personas: row.casa.capacidadPersonas,
+          }
+        : null,
+    }));
   } catch {
     return [];
   }
@@ -70,11 +98,7 @@ export async function crearReservaAdmin(
   }
 }
 
-async function uploadComprobante(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  reservaId: string,
-  file: File
-): Promise<string> {
+async function uploadComprobanteReserva(reservaId: string, file: File): Promise<string> {
   if (file.size > MAX_FILE_BYTES) {
     throw new Error("El archivo supera 5 MB");
   }
@@ -82,19 +106,14 @@ async function uploadComprobante(
   if (!ext || !["jpg", "jpeg", "pdf"].includes(ext)) {
     throw new Error("Solo se permiten .jpg, .jpeg o .pdf");
   }
-  const path = `comprobantes/${reservaId}_${Date.now()}.${ext}`;
+  const pathname = `comprobantes/${reservaId}_${Date.now()}.${ext}`;
   const buf = Buffer.from(await file.arrayBuffer());
-  const { error } = await supabase.storage.from("archivos").upload(path, buf, {
-    contentType: file.type || "application/octet-stream",
-    upsert: false,
-  });
-  if (error) throw new Error(error.message);
-  return path;
+  const { url } = await uploadToBlob(pathname, buf, file.type || "application/octet-stream");
+  return url;
 }
 
 export async function crearReserva(formData: FormData): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
     const casa_id = String(formData.get("casa_id") ?? "").trim();
     const fecha_desde = String(formData.get("fecha_desde") ?? "");
     const fecha_hasta = String(formData.get("fecha_hasta") ?? "");
@@ -120,42 +139,36 @@ export async function crearReserva(formData: FormData): Promise<ActionResult> {
       return { success: false, error: "Mascotas inválido." };
     }
 
-    const { data: casa, error: casaErr } = await supabase
-      .from("casas")
-      .select("capacidad_personas")
-      .eq("id", casa_id)
-      .single();
-    if (casaErr || !casa) return { success: false, error: "Casa no encontrada." };
-    if (cant_personas > casa.capacidad_personas) {
+    const casa = await prisma.casa.findFirst({ where: { id: casa_id, activa: true } });
+    if (!casa) return { success: false, error: "Casa no encontrada." };
+    if (cant_personas > casa.capacidadPersonas) {
       return {
         success: false,
-        error: `Máximo ${casa.capacidad_personas} personas para esta casa.`,
+        error: `Máximo ${casa.capacidadPersonas} personas para esta casa.`,
       };
     }
 
-    const { data: inserted, error: insErr } = await supabase
-      .from("reservas")
-      .insert({
-        casa_id,
-        fecha_desde,
-        fecha_hasta,
-        cant_personas,
+    const inserted = await prisma.reserva.create({
+      data: {
+        casaId: casa_id,
+        fechaDesde: new Date(fecha_desde),
+        fechaHasta: new Date(fecha_hasta),
+        cantPersonas: cant_personas,
         mascotas,
-        saldo_reserva,
-        comprobante_url: null,
+        saldoReserva: saldo_reserva,
+        comprobanteUrl: null,
         estado: "confirmada",
-      })
-      .select("id")
-      .single();
-
-    if (insErr || !inserted) {
-      return { success: false, error: insErr?.message ?? "No se pudo crear la reserva." };
-    }
+      },
+      select: { id: true },
+    });
 
     if (fileEntry instanceof File && fileEntry.size > 0) {
       try {
-        const path = await uploadComprobante(supabase, inserted.id, fileEntry);
-        await supabase.from("reservas").update({ comprobante_url: path }).eq("id", inserted.id);
+        const url = await uploadComprobanteReserva(inserted.id, fileEntry);
+        await prisma.reserva.update({
+          where: { id: inserted.id },
+          data: { comprobanteUrl: url },
+        });
       } catch (e) {
         return {
           success: false,
@@ -177,7 +190,6 @@ export async function editarReserva(formData: FormData): Promise<ActionResult> {
     const id = String(formData.get("id") ?? "").trim();
     if (!id) return { success: false, error: "Falta el id de la reserva." };
 
-    const supabase = await createClient();
     const casa_id = String(formData.get("casa_id") ?? "").trim();
     const fecha_desde = String(formData.get("fecha_desde") ?? "");
     const fecha_hasta = String(formData.get("fecha_hasta") ?? "");
@@ -202,23 +214,19 @@ export async function editarReserva(formData: FormData): Promise<ActionResult> {
       return { success: false, error: "Mascotas inválido." };
     }
 
-    const { data: casa, error: casaErr } = await supabase
-      .from("casas")
-      .select("capacidad_personas")
-      .eq("id", casa_id)
-      .single();
-    if (casaErr || !casa) return { success: false, error: "Casa no encontrada." };
-    if (cant_personas > casa.capacidad_personas) {
+    const casa = await prisma.casa.findFirst({ where: { id: casa_id, activa: true } });
+    if (!casa) return { success: false, error: "Casa no encontrada." };
+    if (cant_personas > casa.capacidadPersonas) {
       return {
         success: false,
-        error: `Máximo ${casa.capacidad_personas} personas para esta casa.`,
+        error: `Máximo ${casa.capacidadPersonas} personas para esta casa.`,
       };
     }
 
     let comprobante_url: string | null | undefined = undefined;
     if (fileEntry instanceof File && fileEntry.size > 0) {
       try {
-        comprobante_url = await uploadComprobante(supabase, id, fileEntry);
+        comprobante_url = await uploadComprobanteReserva(id, fileEntry);
       } catch (e) {
         return {
           success: false,
@@ -229,20 +237,18 @@ export async function editarReserva(formData: FormData): Promise<ActionResult> {
       comprobante_url = null;
     }
 
-    const updatePayload: Record<string, unknown> = {
-      casa_id,
-      fecha_desde,
-      fecha_hasta,
-      cant_personas,
-      mascotas: Number.isFinite(mascotasVal) ? mascotasVal : 0,
-      saldo_reserva,
-    };
-    if (comprobante_url !== undefined) {
-      updatePayload.comprobante_url = comprobante_url;
-    }
-
-    const { error: upErr } = await supabase.from("reservas").update(updatePayload).eq("id", id);
-    if (upErr) return { success: false, error: upErr.message };
+    await prisma.reserva.update({
+      where: { id },
+      data: {
+        casaId: casa_id,
+        fechaDesde: new Date(fecha_desde),
+        fechaHasta: new Date(fecha_hasta),
+        cantPersonas: cant_personas,
+        mascotas: Number.isFinite(mascotasVal) ? mascotasVal : 0,
+        saldoReserva: saldo_reserva,
+        ...(comprobante_url !== undefined ? { comprobanteUrl: comprobante_url } : {}),
+      },
+    });
 
     revalidatePath("/admin/reservas");
     revalidatePath("/admin/tesoreria");
@@ -254,9 +260,7 @@ export async function editarReserva(formData: FormData): Promise<ActionResult> {
 
 export async function eliminarReserva(id: string): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
-    const { error } = await supabase.from("reservas").delete().eq("id", id);
-    if (error) return { success: false, error: error.message };
+    await deleteReserva(id);
     revalidatePath("/admin/reservas");
     revalidatePath("/admin/tesoreria");
     return { success: true };
