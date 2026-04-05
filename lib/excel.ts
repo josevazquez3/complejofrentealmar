@@ -35,7 +35,8 @@ export function exportReservas(reservas: ReservaConCasa[]): void {
     "Fecha Desde": formatFecha(r.fecha_desde),
     "Fecha Hasta": formatFecha(r.fecha_hasta),
     Casa: r.casas?.nombre ?? "—",
-    Personas: r.cant_personas,
+    Adultos: r.adultos,
+    Niños: r.ninos,
     Mascotas: r.mascotas ?? 0,
     Saldo: r.saldo_reserva ?? "",
   }));

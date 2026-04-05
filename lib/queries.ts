@@ -65,6 +65,7 @@ function mapConfig(row: {
   descripcionHome: string | null;
   ubicacionDireccion: string | null;
   mapaQuery: string | null;
+  whatsappMensaje?: string | null;
   whatsappE164: string | null;
   emailContacto: string | null;
   facebookUrl: string | null;
@@ -79,6 +80,7 @@ function mapConfig(row: {
     descripcion_home: row.descripcionHome,
     ubicacion_direccion: row.ubicacionDireccion,
     mapa_query: row.mapaQuery,
+    whatsapp_mensaje: row.whatsappMensaje ?? "",
     whatsapp_e164: row.whatsappE164,
     email_contacto: row.emailContacto,
     facebook_url: row.facebookUrl,
@@ -93,7 +95,8 @@ function mapReservaBase(r: {
   casaId: string;
   fechaDesde: Date;
   fechaHasta: Date;
-  cantPersonas: number;
+  adultos: number;
+  ninos: number;
   mascotas: number;
   comprobanteUrl: string | null;
   saldoReserva: Prisma.Decimal | null;
@@ -112,7 +115,8 @@ function mapReservaBase(r: {
     casa_id: r.casaId,
     fecha_desde: fd,
     fecha_hasta: fh,
-    cant_personas: r.cantPersonas,
+    adultos: r.adultos,
+    ninos: r.ninos,
     mascotas: r.mascotas,
     comprobante_url: r.comprobanteUrl,
     saldo_reserva: r.saldoReserva != null ? Number(r.saldoReserva) : null,
@@ -407,13 +411,14 @@ export async function insertarReserva(
       casaId: reserva.casa_id,
       fechaDesde: new Date(reserva.fecha_desde),
       fechaHasta: new Date(reserva.fecha_hasta),
-      cantPersonas: reserva.personas,
+      adultos: reserva.adultos,
+      ninos: reserva.ninos,
+      mascotas: reserva.mascotas,
       nombre: reserva.nombre,
       apellido: reserva.apellido,
       email: reserva.email,
       telefono: reserva.telefono,
       mensaje: reserva.mensaje ?? null,
-      mascotas: 0,
       estado,
     },
   });

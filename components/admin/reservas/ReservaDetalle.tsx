@@ -2,10 +2,17 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
+import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/useToast";
 import type { EstadoReserva, ReservaAdmin } from "@/types";
 import { formatFechaCorta, formatRangoFechas, formatRelativo } from "@/lib/format-fecha";
 import { cambiarEstadoReserva, eliminarReservaAdmin } from "@/app/admin/(panel)/reservas/actions";
+import {
+  puedeConfirmarPorWhatsApp,
+  tituloBotonWhatsapp,
+  waMeUrlConfirmacionReserva,
+} from "@/lib/wa-reserva-confirmacion";
 
 function badgeClass(estado: EstadoReserva | null | undefined): string {
   if (estado === "confirmada") return "bg-green-100 text-green-700";
@@ -23,12 +30,23 @@ export function ReservaDetalle({
   open,
   onClose,
   reserva,
+  whatsappE164,
+  whatsappMensaje,
+  nombreComplejo,
 }: {
   open: boolean;
   onClose: () => void;
   reserva: ReservaAdmin | null;
+  whatsappE164: string;
+  whatsappMensaje: string;
+  nombreComplejo: string;
 }) {
   const { showToast } = useToast();
+  const [seniaInput, setSeniaInput] = useState("");
+
+  useEffect(() => {
+    setSeniaInput("");
+  }, [reserva?.id]);
 
   async function setEstado(estado: EstadoReserva) {
     if (!reserva) return;
@@ -51,6 +69,26 @@ export function ReservaDetalle({
       showToast(res.error ?? "No se pudo eliminar.", "error");
     }
   }
+
+  const checkWa = reserva
+    ? puedeConfirmarPorWhatsApp(reserva.estado, whatsappE164, reserva.telefono)
+    : ({ ok: false as const, razon: "" });
+  const urlWa =
+    reserva && checkWa.ok
+      ? waMeUrlConfirmacionReserva(
+          reserva,
+          {
+            whatsappE164,
+            whatsappMensaje,
+            nombreComplejo,
+          },
+          seniaInput || undefined
+        )
+      : null;
+  const razonWa = checkWa.ok ? "" : checkWa.razon;
+  const waTitle = reserva
+    ? tituloBotonWhatsapp({ check: checkWa, url: urlWa, seniaOverride: seniaInput })
+    : "";
 
   return (
     <AnimatePresence>
@@ -124,8 +162,19 @@ export function ReservaDetalle({
                 </p>
                 <p className="mt-1 text-sm text-fm-muted">
                   {formatFechaCorta(reserva.fecha_desde)} → {formatFechaCorta(reserva.fecha_hasta)} ·{" "}
-                  {reserva.noches ?? "—"} noches · {reserva.cant_personas} personas
+                  {reserva.noches ?? "—"} noches
                 </p>
+                <ul className="mt-2 space-y-1 text-sm text-gray-800">
+                  <li>
+                    <span className="font-medium text-fm-muted">Adultos:</span> {reserva.adultos}
+                  </li>
+                  <li>
+                    <span className="font-medium text-fm-muted">Niños:</span> {reserva.ninos}
+                  </li>
+                  <li>
+                    <span className="font-medium text-fm-muted">Mascotas:</span> {reserva.mascotas ?? 0}
+                  </li>
+                </ul>
               </div>
 
               {reserva.mensaje?.trim() ? (
@@ -155,6 +204,56 @@ export function ReservaDetalle({
                     Confirmar
                   </button>
                 ) : null}
+                <div className="space-y-2">
+                  {reserva.estado === "confirmada" ? (
+                    <div
+                      className="flex items-center gap-2 rounded-lg border border-fm-border bg-white px-3 py-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span className="text-sm text-fm-muted" aria-hidden>
+                        💲
+                      </span>
+                      <input
+                        type="text"
+                        className="h-9 w-28 rounded-md border border-fm-border px-2 text-sm text-gray-800 outline-none placeholder:text-fm-muted focus:border-fm-red/40"
+                        placeholder="Seña $"
+                        value={seniaInput}
+                        onChange={(e) => setSeniaInput(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        onFocus={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  ) : null}
+                  {urlWa ? (
+                    <a
+                      href={urlWa}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#25D366] py-3 text-sm font-semibold uppercase tracking-widest text-white hover:bg-[#20bd5a]"
+                      title={waTitle}
+                    >
+                      <FaWhatsapp className="h-5 w-5 shrink-0" aria-hidden />
+                      Confirmar por WhatsApp
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-gray-300 py-3 text-sm font-semibold uppercase tracking-widest text-gray-500"
+                      title={waTitle}
+                    >
+                      <FaWhatsapp className="h-5 w-5 shrink-0 opacity-70" aria-hidden />
+                      Confirmar por WhatsApp
+                    </button>
+                  )}
+                  {!checkWa.ok ? (
+                    <p className="text-center text-xs text-amber-800">{razonWa}</p>
+                  ) : (
+                    <p className="text-center text-xs text-fm-muted">
+                      Se abre un chat con el teléfono del huésped y el texto de aprobación precargado.
+                    </p>
+                  )}
+                </div>
                 {reserva.estado !== "cancelada" ? (
                   <button
                     type="button"

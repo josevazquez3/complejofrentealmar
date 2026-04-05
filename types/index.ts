@@ -38,7 +38,8 @@ export interface Reserva {
   casa_id: string;
   fecha_desde: string;
   fecha_hasta: string;
-  cant_personas: number;
+  adultos: number;
+  ninos: number;
   mascotas: number | null;
   comprobante_url: string | null;
   saldo_reserva: number | null;
@@ -61,7 +62,9 @@ export interface ReservaInsert {
   telefono: string;
   fecha_desde: string;
   fecha_hasta: string;
-  personas: number;
+  adultos: number;
+  ninos: number;
+  mascotas: number;
   mensaje?: string;
 }
 
@@ -230,6 +233,9 @@ export interface Configuracion {
   descripcion_home: string | null;
   ubicacion_direccion: string | null;
   mapa_query: string | null;
+  /** Plantilla mensaje confirmación (placeholders {nombre}, {complejo}, …). Vacío = default en runtime. */
+  whatsapp_mensaje: string;
+  /** WhatsApp solo dígitos (código país). Sitio público y confirmación wa.me en panel admin. */
   whatsapp_e164: string | null;
   email_contacto: string | null;
   facebook_url: string | null;

@@ -30,7 +30,8 @@ export async function fetchReservasForExport(): Promise<ReservaConCasa[]> {
       casa_id: row.casaId,
       fecha_desde: row.fechaDesde.toISOString().slice(0, 10),
       fecha_hasta: row.fechaHasta.toISOString().slice(0, 10),
-      cant_personas: row.cantPersonas,
+      adultos: row.adultos,
+      ninos: row.ninos,
       mascotas: row.mascotas,
       comprobante_url: row.comprobanteUrl,
       saldo_reserva: row.saldoReserva != null ? Number(row.saldoReserva) : null,
@@ -123,9 +124,9 @@ export async function crearReserva(formData: FormData): Promise<ActionResult> {
     const casa_id = String(formData.get("casa_id") ?? "").trim();
     const fecha_desde = String(formData.get("fecha_desde") ?? "");
     const fecha_hasta = String(formData.get("fecha_hasta") ?? "");
-    const cant_personas = Number.parseInt(String(formData.get("cant_personas") ?? ""), 10);
-    const mascotasField = String(formData.get("mascotas") ?? "0");
-    const mascotas = mascotasField === "4" ? 4 : Number.parseInt(mascotasField, 10);
+    const adultos = Number.parseInt(String(formData.get("adultos") ?? ""), 10);
+    const ninos = Number.parseInt(String(formData.get("ninos") ?? ""), 10);
+    const mascotas = Number.parseInt(String(formData.get("mascotas") ?? "0"), 10);
     const saldoStr = String(formData.get("saldo_reserva") ?? "");
     const saldo_reserva = saldoStr.trim() ? parseARSInput(saldoStr) : null;
     const fileEntry = formData.get("comprobante");
@@ -138,19 +139,22 @@ export async function crearReserva(formData: FormData): Promise<ActionResult> {
     if (todayLocalYmd() > fecha_desde) {
       return { success: false, error: "La fecha desde no puede ser anterior a hoy." };
     }
-    if (!Number.isFinite(cant_personas) || cant_personas < 1) {
-      return { success: false, error: "Cantidad de personas inválida." };
+    if (!Number.isFinite(adultos) || adultos < 1 || adultos > 10) {
+      return { success: false, error: "Adultos inválido (1 a 10)." };
     }
-    if (!Number.isFinite(mascotas) || mascotas < 0 || mascotas > 4) {
-      return { success: false, error: "Mascotas inválido." };
+    if (!Number.isFinite(ninos) || ninos < 0 || ninos > 10) {
+      return { success: false, error: "Niños inválido (0 a 10)." };
+    }
+    if (!Number.isFinite(mascotas) || mascotas < 0 || mascotas > 5) {
+      return { success: false, error: "Mascotas inválido (0 a 5)." };
     }
 
     const casa = await prisma.casa.findFirst({ where: { id: casa_id, activa: true } });
     if (!casa) return { success: false, error: "Casa no encontrada." };
-    if (cant_personas > casa.capacidadPersonas) {
+    if (adultos + ninos > casa.capacidadPersonas) {
       return {
         success: false,
-        error: `Máximo ${casa.capacidadPersonas} personas para esta casa.`,
+        error: `Máximo ${casa.capacidadPersonas} personas (adultos + niños) para esta casa.`,
       };
     }
 
@@ -159,7 +163,8 @@ export async function crearReserva(formData: FormData): Promise<ActionResult> {
         casaId: casa_id,
         fechaDesde: new Date(fecha_desde),
         fechaHasta: new Date(fecha_hasta),
-        cantPersonas: cant_personas,
+        adultos,
+        ninos,
         mascotas,
         saldoReserva: saldo_reserva,
         comprobanteUrl: null,
@@ -199,10 +204,9 @@ export async function editarReserva(formData: FormData): Promise<ActionResult> {
     const casa_id = String(formData.get("casa_id") ?? "").trim();
     const fecha_desde = String(formData.get("fecha_desde") ?? "");
     const fecha_hasta = String(formData.get("fecha_hasta") ?? "");
-    const cant_personas = Number.parseInt(String(formData.get("cant_personas") ?? ""), 10);
-    const mascotasField = String(formData.get("mascotas") ?? "0");
-    const mascotasVal =
-      mascotasField === "4" ? 4 : Number.parseInt(mascotasField, 10);
+    const adultos = Number.parseInt(String(formData.get("adultos") ?? ""), 10);
+    const ninos = Number.parseInt(String(formData.get("ninos") ?? ""), 10);
+    const mascotasVal = Number.parseInt(String(formData.get("mascotas") ?? "0"), 10);
     const saldoStr = String(formData.get("saldo_reserva") ?? "");
     const saldo_reserva = saldoStr.trim() ? parseARSInput(saldoStr) : null;
     const fileEntry = formData.get("comprobante");
@@ -213,19 +217,22 @@ export async function editarReserva(formData: FormData): Promise<ActionResult> {
     if (fecha_hasta <= fecha_desde) {
       return { success: false, error: "La fecha hasta debe ser posterior a la fecha desde." };
     }
-    if (!Number.isFinite(cant_personas) || cant_personas < 1) {
-      return { success: false, error: "Cantidad de personas inválida." };
+    if (!Number.isFinite(adultos) || adultos < 1 || adultos > 10) {
+      return { success: false, error: "Adultos inválido (1 a 10)." };
     }
-    if (!Number.isFinite(mascotasVal) || mascotasVal < 0 || mascotasVal > 4) {
-      return { success: false, error: "Mascotas inválido." };
+    if (!Number.isFinite(ninos) || ninos < 0 || ninos > 10) {
+      return { success: false, error: "Niños inválido (0 a 10)." };
+    }
+    if (!Number.isFinite(mascotasVal) || mascotasVal < 0 || mascotasVal > 5) {
+      return { success: false, error: "Mascotas inválido (0 a 5)." };
     }
 
     const casa = await prisma.casa.findFirst({ where: { id: casa_id, activa: true } });
     if (!casa) return { success: false, error: "Casa no encontrada." };
-    if (cant_personas > casa.capacidadPersonas) {
+    if (adultos + ninos > casa.capacidadPersonas) {
       return {
         success: false,
-        error: `Máximo ${casa.capacidadPersonas} personas para esta casa.`,
+        error: `Máximo ${casa.capacidadPersonas} personas (adultos + niños) para esta casa.`,
       };
     }
 
@@ -249,7 +256,8 @@ export async function editarReserva(formData: FormData): Promise<ActionResult> {
         casaId: casa_id,
         fechaDesde: new Date(fecha_desde),
         fechaHasta: new Date(fecha_hasta),
-        cantPersonas: cant_personas,
+        adultos,
+        ninos,
         mascotas: Number.isFinite(mascotasVal) ? mascotasVal : 0,
         saldoReserva: saldo_reserva,
         ...(comprobante_url !== undefined ? { comprobanteUrl: comprobante_url } : {}),

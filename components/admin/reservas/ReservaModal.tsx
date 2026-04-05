@@ -35,8 +35,7 @@ function todayYmd(): string {
 }
 
 function mascotasToSelect(m: number | null | undefined): string {
-  const v = m ?? 0;
-  return v >= 4 ? "4" : String(v);
+  return String(Math.min(5, Math.max(0, m ?? 0)));
 }
 
 export interface ReservaModalProps {
@@ -55,7 +54,8 @@ export function ReservaModal({ open, onClose, onSuccess, reserva, casas }: Reser
   const [casaId, setCasaId] = useState(casas[0]?.id ?? "");
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
-  const [cantPersonas, setCantPersonas] = useState(2);
+  const [adultos, setAdultos] = useState(2);
+  const [ninos, setNinos] = useState(0);
   const [mascotas, setMascotas] = useState("0");
   const [saldoStr, setSaldoStr] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -73,7 +73,8 @@ export function ReservaModal({ open, onClose, onSuccess, reserva, casas }: Reser
       setCasaId(reserva.casa_id);
       setFechaDesde(reserva.fecha_desde);
       setFechaHasta(reserva.fecha_hasta);
-      setCantPersonas(reserva.cant_personas);
+      setAdultos(reserva.adultos);
+      setNinos(reserva.ninos);
       setMascotas(mascotasToSelect(reserva.mascotas));
       setSaldoStr(
         reserva.saldo_reserva != null
@@ -87,7 +88,8 @@ export function ReservaModal({ open, onClose, onSuccess, reserva, casas }: Reser
       setCasaId(casas[0]?.id ?? "");
       setFechaDesde("");
       setFechaHasta("");
-      setCantPersonas(2);
+      setAdultos(2);
+      setNinos(0);
       setMascotas("0");
       setSaldoStr("");
       setFile(null);
@@ -144,10 +146,19 @@ export function ReservaModal({ open, onClose, onSuccess, reserva, casas }: Reser
     if (!fechaDesde || !fechaHasta) return "Completá las fechas.";
     if (fechaHasta <= fechaDesde) return "La fecha hasta debe ser posterior a la fecha desde.";
     if (!isEdit && fechaDesde < todayYmd()) return "La fecha desde no puede ser anterior a hoy.";
-    if (cantPersonas < 1 || (capacidad > 0 && cantPersonas > capacidad)) {
-      return capacidad > 0
-        ? `Entre 1 y ${capacidad} personas.`
-        : "Cantidad de personas inválida.";
+    if (!Number.isFinite(adultos) || adultos < 1 || adultos > 10) {
+      return "Adultos: entre 1 y 10.";
+    }
+    if (!Number.isFinite(ninos) || ninos < 0 || ninos > 10) {
+      return "Niños: entre 0 y 10.";
+    }
+    const total = adultos + ninos;
+    if (capacidad > 0 && total > capacidad) {
+      return `Adultos + niños no puede superar ${capacidad} (capacidad de la casa).`;
+    }
+    const m = Number.parseInt(mascotas, 10);
+    if (!Number.isFinite(m) || m < 0 || m > 5) {
+      return "Mascotas: entre 0 y 5.";
     }
     return null;
   }
@@ -163,7 +174,8 @@ export function ReservaModal({ open, onClose, onSuccess, reserva, casas }: Reser
     fd.set("casa_id", casaId);
     fd.set("fecha_desde", fechaDesde);
     fd.set("fecha_hasta", fechaHasta);
-    fd.set("cant_personas", String(cantPersonas));
+    fd.set("adultos", String(adultos));
+    fd.set("ninos", String(ninos));
     fd.set("mascotas", mascotas);
     fd.set("saldo_reserva", saldoStr);
     if (file) fd.set("comprobante", file);
@@ -228,20 +240,40 @@ export function ReservaModal({ open, onClose, onSuccess, reserva, casas }: Reser
               </SelectContent>
             </Select>
             {capacidad > 0 ? (
-              <p className="text-xs text-muted-foreground">Capacidad máxima: {capacidad} personas</p>
+              <p className="text-xs text-muted-foreground">
+                Capacidad máxima: {capacidad} personas (adultos + niños; las mascotas no cuentan).
+              </p>
             ) : null}
           </div>
-          <div className="grid gap-2">
-            <Label>Cantidad de personas</Label>
-            <Input
-              type="number"
-              min={1}
-              max={capacidad > 0 ? capacidad : undefined}
-              value={cantPersonas}
-              onChange={(e) => setCantPersonas(Number(e.target.value))}
-            />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label>Cantidad de adultos</Label>
+              <Input
+                type="number"
+                min={1}
+                max={Math.min(10, capacidad > 0 ? capacidad : 10)}
+                value={adultos}
+                onChange={(e) => {
+                  const a = Number(e.target.value);
+                  setAdultos(a);
+                  if (capacidad > 0) {
+                    setNinos((n) => Math.min(Math.max(0, n), Math.max(0, capacidad - a)));
+                  }
+                }}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Cantidad de niños</Label>
+              <Input
+                type="number"
+                min={0}
+                max={Math.min(10, capacidad > 0 ? Math.max(0, capacidad - adultos) : 10)}
+                value={ninos}
+                onChange={(e) => setNinos(Number(e.target.value))}
+              />
+            </div>
           </div>
-          <div className="grid gap-2">
+          <div className="grid gap-2 sm:w-1/2">
             <Label>Mascotas</Label>
             <Select value={mascotas} onValueChange={(v) => setMascotas(v ?? "0")}>
               <SelectTrigger>
@@ -252,7 +284,8 @@ export function ReservaModal({ open, onClose, onSuccess, reserva, casas }: Reser
                 <SelectItem value="1">1</SelectItem>
                 <SelectItem value="2">2</SelectItem>
                 <SelectItem value="3">3</SelectItem>
-                <SelectItem value="4">4+</SelectItem>
+                <SelectItem value="4">4</SelectItem>
+                <SelectItem value="5">5</SelectItem>
               </SelectContent>
             </Select>
           </div>

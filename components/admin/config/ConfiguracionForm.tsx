@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { motion } from "framer-motion";
 import { Settings } from "lucide-react";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { Configuracion } from "@/types";
 import { guardarConfiguracion } from "@/app/admin/(panel)/configuracion/actions";
+import { WHATSAPP_MENSAJE_DEFAULT } from "@/lib/wa-reserva-confirmacion";
 
 const section = {
   hidden: { opacity: 0, y: 12 },
@@ -30,6 +31,11 @@ export function ConfiguracionForm({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [whatsappMensaje, setWhatsappMensaje] = useState(initial.whatsapp_mensaje ?? "");
+
+  useEffect(() => {
+    setWhatsappMensaje(initial.whatsapp_mensaje ?? "");
+  }, [initial.whatsapp_mensaje]);
 
   function onSubmit(formData: FormData) {
     startTransition(async () => {
@@ -135,14 +141,45 @@ export function ConfiguracionForm({
         >
           <h2 className="font-display text-lg text-nautico-800">Contacto y redes</h2>
           <div className="space-y-2">
-            <Label htmlFor="whatsapp_e164">WhatsApp (con prefijo país, solo números)</Label>
+            <Label htmlFor="whatsapp_e164">Número de WhatsApp</Label>
             <Input
               id="whatsapp_e164"
               name="whatsapp_e164"
               defaultValue={initial.whatsapp_e164 ?? ""}
-              placeholder="5492255000000"
+              placeholder="5492215000000"
               className="rounded-xl"
             />
+            <p className="text-xs text-nautico-600/90">
+              Ingresá el número sin &apos;+&apos; ni espacios. Ejemplo: 5492215000000. Se usa en los botones del sitio
+              público y para habilitar la confirmación de reservas desde el panel admin.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="whatsapp_mensaje">Mensaje de confirmación WhatsApp</Label>
+            <textarea
+              id="whatsapp_mensaje"
+              name="whatsapp_mensaje"
+              value={whatsappMensaje}
+              onChange={(e) => setWhatsappMensaje(e.target.value)}
+              rows={10}
+              placeholder={WHATSAPP_MENSAJE_DEFAULT}
+              className="w-full min-h-[12rem] resize-y rounded-xl border border-nautico-900/15 bg-white px-3 py-2 text-sm text-nautico-900 shadow-sm outline-none ring-nautico-900/20 focus:ring-2"
+            />
+            <div className="rounded-lg border border-nautico-900/10 bg-nautico-50/80 px-3 py-2 text-xs text-nautico-800/90">
+              <p className="font-medium text-nautico-900">Variables disponibles:</p>
+              <p className="mt-1 font-mono leading-relaxed">
+                {"{nombre}"} {"{apellido}"} {"{complejo}"} {"{fecha_inicio}"} {"{fecha_fin}"}{" "}
+                {"{unidad}"} {"{adultos}"} {"{ninos}"} {"{mascotas}"} {"{senia}"}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl border-nautico-900/20"
+              onClick={() => setWhatsappMensaje(WHATSAPP_MENSAJE_DEFAULT)}
+            >
+              Restaurar mensaje por defecto
+            </Button>
           </div>
           <div className="space-y-2">
             <Label htmlFor="email_contacto">Email de contacto</Label>

@@ -28,14 +28,23 @@ export async function crearReserva(data: ReservaInsert): Promise<
     if (todayYmd() > data.fecha_desde) {
       return { ok: false, error: "La fecha de ingreso no puede ser anterior a hoy." };
     }
-    if (!Number.isFinite(data.personas) || data.personas < 1) {
-      return { ok: false, error: "Cantidad de personas inválida." };
+    if (!Number.isFinite(data.adultos) || data.adultos < 1 || data.adultos > 10) {
+      return { ok: false, error: "Cantidad de adultos inválida (1 a 10)." };
+    }
+    if (!Number.isFinite(data.ninos) || data.ninos < 0 || data.ninos > 10) {
+      return { ok: false, error: "Cantidad de niños inválida (0 a 10)." };
+    }
+    if (!Number.isFinite(data.mascotas) || data.mascotas < 0 || data.mascotas > 5) {
+      return { ok: false, error: "Cantidad de mascotas inválida (0 a 5)." };
     }
 
     const casa = await getCasaById(data.casa_id);
     if (!casa) return { ok: false, error: "Unidad no encontrada." };
-    if (data.personas > casa.capacidad_personas) {
-      return { ok: false, error: `Máximo ${casa.capacidad_personas} personas para esta unidad.` };
+    if (data.adultos + data.ninos > casa.capacidad_personas) {
+      return {
+        ok: false,
+        error: `Máximo ${casa.capacidad_personas} personas (adultos + niños) para esta unidad.`,
+      };
     }
 
     const bloqueados = await getFechasBloqueadas(data.casa_id);

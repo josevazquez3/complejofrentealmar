@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   CheckCircle,
@@ -12,12 +12,24 @@ import {
   User,
   XCircle,
 } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 import { AnimatePresence, motion } from "framer-motion";
 import { useToast } from "@/hooks/useToast";
 import type { Casa, EstadoReserva, FiltroEstado, FiltroOrden, ReservaAdmin } from "@/types";
 import { formatFechaCorta, formatRangoFechas } from "@/lib/format-fecha";
 import { cn } from "@/lib/utils";
+import { guardarConfiguracion } from "@/app/admin/(panel)/configuracion/actions";
 import { cambiarEstadoReserva, eliminarReservaAdmin } from "@/app/admin/(panel)/reservas/actions";
+import { configuracionToGuardarFormData } from "@/lib/configuracion-to-form-data";
+import {
+  mensajeWhatsappParaEditor,
+  puedeConfirmarPorWhatsApp,
+  tituloBotonWhatsapp,
+  waMeUrlConfirmacionReserva,
+  WHATSAPP_MENSAJE_DEFAULT,
+} from "@/lib/wa-reserva-confirmacion";
+import type { Configuracion } from "@/types";
+import { EditarMensajeWhatsappModal } from "./EditarMensajeWhatsappModal";
 import { ReservaDetalle } from "./ReservaDetalle";
 import { NuevaReservaModal } from "./NuevaReservaModal";
 
@@ -45,6 +57,10 @@ export function ReservasAdminClient({
   total,
   kpis,
   initialEstado = "todos",
+  configuracionCompleta,
+  whatsappE164,
+  whatsappMensaje,
+  nombreComplejo,
 }: {
   reservas: ReservaAdmin[];
   casasActivas: Casa[];
@@ -53,6 +69,10 @@ export function ReservasAdminClient({
   total: number;
   kpis: { pendientes: number; confirmadas: number; canceladas: number; proximas: number };
   initialEstado?: FiltroEstado;
+  configuracionCompleta: Configuracion;
+  whatsappE164: string;
+  whatsappMensaje: string;
+  nombreComplejo: string;
 }) {
   const { showToast } = useToast();
   const [query, setQuery] = useState("");
@@ -65,6 +85,20 @@ export function ReservasAdminClient({
   const [detalle, setDetalle] = useState<ReservaAdmin | null>(null);
   const [nuevaOpen, setNuevaOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<ReservaAdmin | null>(null);
+  const [seniaMap, setSeniaMap] = useState<Record<string, string>>({});
+  const [modalMensajeOpen, setModalMensajeOpen] = useState(false);
+  const [mensajeEditado, setMensajeEditado] = useState(() => mensajeWhatsappParaEditor(whatsappMensaje));
+  const [whatsappMensajeActivo, setWhatsappMensajeActivo] = useState(() =>
+    mensajeWhatsappParaEditor(whatsappMensaje)
+  );
+  const [guardandoMensaje, setGuardandoMensaje] = useState(false);
+  const [mensajeGuardadoOk, setMensajeGuardadoOk] = useState(false);
+
+  useEffect(() => {
+    const w = mensajeWhatsappParaEditor(whatsappMensaje);
+    setMensajeEditado(w);
+    setWhatsappMensajeActivo(w);
+  }, [whatsappMensaje]);
 
   const casasDeReservas = useMemo(() => {
     const map = new Map<string, string>();
@@ -123,6 +157,26 @@ export function ReservasAdminClient({
     else showToast(res.error ?? "No se pudo eliminar.", "error");
   }
 
+  async function handleGuardarMensaje() {
+    setGuardandoMensaje(true);
+    try {
+      const fd = configuracionToGuardarFormData(configuracionCompleta, mensajeEditado);
+      const res = await guardarConfiguracion(fd);
+      if (!res.success) {
+        showToast(res.error ?? "No se pudo guardar.", "error");
+        return;
+      }
+      setWhatsappMensajeActivo(mensajeEditado);
+      setMensajeGuardadoOk(true);
+      setTimeout(() => {
+        setModalMensajeOpen(false);
+        setMensajeGuardadoOk(false);
+      }, 2000);
+    } finally {
+      setGuardandoMensaje(false);
+    }
+  }
+
   return (
     <div>
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -130,13 +184,23 @@ export function ReservasAdminClient({
           <h1 className="text-2xl font-bold text-gray-800">Gestión de Reservas</h1>
           <p className="mt-1 text-sm text-fm-muted">{total} reservas registradas</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setNuevaOpen(true)}
-          className="rounded-lg bg-fm-red px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700"
-        >
-          + Nueva Reserva
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setModalMensajeOpen(true)}
+            className="flex items-center gap-2 rounded-lg border border-green-500 px-4 py-2 font-medium text-green-600 transition hover:bg-green-50"
+          >
+            <FaWhatsapp className="text-green-500" />
+            Editar Mensaje WhatsApp
+          </button>
+          <button
+            type="button"
+            onClick={() => setNuevaOpen(true)}
+            className="rounded-lg bg-fm-red px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+          >
+            + Nueva Reserva
+          </button>
+        </div>
       </div>
 
       <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -252,7 +316,7 @@ export function ReservasAdminClient({
                 <th className="px-4 py-3">Huésped</th>
                 <th className="px-4 py-3">Fechas</th>
                 <th className="px-4 py-3">Noches</th>
-                <th className="px-4 py-3">Personas</th>
+                <th className="px-4 py-3">A / N / Masc.</th>
                 <th className="px-4 py-3">Estado</th>
                 <th className="px-4 py-3 text-right">Acciones</th>
               </tr>
@@ -262,6 +326,20 @@ export function ReservasAdminClient({
                 const estado = (r.estado ?? "pendiente") as EstadoReserva;
                 const canConfirm = estado !== "confirmada";
                 const canCancel = estado !== "cancelada";
+                const puedeConfirmar = puedeConfirmarPorWhatsApp(estado, whatsappE164, r.telefono);
+                const waConfig = {
+                  whatsappE164,
+                  whatsappMensaje: whatsappMensajeActivo,
+                  nombreComplejo,
+                } as const;
+                const url = puedeConfirmar.ok
+                  ? waMeUrlConfirmacionReserva(r, waConfig, seniaMap[r.id] ?? "")
+                  : null;
+                const waTitle = tituloBotonWhatsapp({
+                  check: puedeConfirmar,
+                  url,
+                  seniaOverride: seniaMap[r.id],
+                });
                 return (
                   <tr key={r.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-fm-muted">{idx + 1}</td>
@@ -280,8 +358,10 @@ export function ReservasAdminClient({
                     </td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center gap-2 text-gray-800">
-                        <User className="h-4 w-4 text-fm-muted" />
-                        {r.cant_personas}
+                        <User className="h-4 w-4 shrink-0 text-fm-muted" />
+                        <span className="text-xs">
+                          {r.adultos} / {r.ninos} / {r.mascotas ?? 0}
+                        </span>
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -301,6 +381,44 @@ export function ReservasAdminClient({
                           }}
                         >
                           <Eye className="h-4 w-4" />
+                        </button>
+                        {estado === "confirmada" ? (
+                          <div
+                            className="flex h-8 shrink-0 items-center gap-0.5 rounded-lg border border-fm-border bg-white px-1.5"
+                            onClick={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => e.stopPropagation()}
+                          >
+                            <span className="select-none text-xs leading-none text-fm-muted" aria-hidden>
+                              💲
+                            </span>
+                            <input
+                              type="text"
+                              className="h-6 w-24 min-w-0 rounded-md border-0 bg-transparent px-0.5 text-xs text-gray-800 outline-none placeholder:text-fm-muted focus:ring-0"
+                              placeholder="Seña $"
+                              value={seniaMap[r.id] ?? ""}
+                              onChange={(e) =>
+                                setSeniaMap((prev) => ({ ...prev, [r.id]: e.target.value }))
+                              }
+                              onClick={(e) => e.stopPropagation()}
+                              onFocus={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                        ) : null}
+                        <button
+                          type="button"
+                          title={waTitle}
+                          disabled={!url}
+                          className={cn(
+                            "rounded-lg p-2",
+                            url
+                              ? "text-[#25D366] hover:bg-green-50"
+                              : "cursor-not-allowed text-gray-300"
+                          )}
+                          onClick={() => {
+                            if (url) window.open(url, "_blank", "noopener,noreferrer");
+                          }}
+                        >
+                          <FaWhatsapp className="h-4 w-4" aria-hidden />
                         </button>
                         <button
                           type="button"
@@ -354,6 +472,20 @@ export function ReservasAdminClient({
       <div className="md:hidden space-y-3">
         {filtered.map((r) => {
           const estado = (r.estado ?? "pendiente") as EstadoReserva;
+          const puedeConfirmar = puedeConfirmarPorWhatsApp(estado, whatsappE164, r.telefono);
+          const waConfig = {
+            whatsappE164,
+            whatsappMensaje: whatsappMensajeActivo,
+            nombreComplejo,
+          } as const;
+          const url = puedeConfirmar.ok
+            ? waMeUrlConfirmacionReserva(r, waConfig, seniaMap[r.id] ?? "")
+            : null;
+          const waTitleMob = tituloBotonWhatsapp({
+            check: puedeConfirmar,
+            url,
+            seniaOverride: seniaMap[r.id],
+          });
           return (
             <div key={r.id} className="rounded-xl border border-fm-border bg-white p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
@@ -370,6 +502,44 @@ export function ReservasAdminClient({
                     }}
                   >
                     <Eye className="h-4 w-4" />
+                  </button>
+                  {estado === "confirmada" ? (
+                    <div
+                      className="flex h-8 shrink-0 items-center gap-0.5 rounded-lg border border-fm-border bg-white px-1.5"
+                      onClick={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
+                    >
+                      <span className="select-none text-xs leading-none text-fm-muted" aria-hidden>
+                        💲
+                      </span>
+                      <input
+                        type="text"
+                        className="h-6 w-24 min-w-0 rounded-md border-0 bg-transparent px-0.5 text-xs text-gray-800 outline-none placeholder:text-fm-muted focus:ring-0"
+                        placeholder="Seña $"
+                        value={seniaMap[r.id] ?? ""}
+                        onChange={(e) =>
+                          setSeniaMap((prev) => ({ ...prev, [r.id]: e.target.value }))
+                        }
+                        onClick={(e) => e.stopPropagation()}
+                        onFocus={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  ) : null}
+                  <button
+                    type="button"
+                    title={waTitleMob}
+                    disabled={!url}
+                    className={cn(
+                      "rounded-lg p-2",
+                      url
+                        ? "text-[#25D366] hover:bg-green-50"
+                        : "cursor-not-allowed text-gray-300"
+                    )}
+                    onClick={() => {
+                      if (url) window.open(url, "_blank", "noopener,noreferrer");
+                    }}
+                  >
+                    <FaWhatsapp className="h-4 w-4" aria-hidden />
                   </button>
                   <button
                     type="button"
@@ -389,7 +559,7 @@ export function ReservasAdminClient({
                 📅 {formatFechaCorta(r.fecha_desde)} → {formatFechaCorta(r.fecha_hasta)}
               </p>
               <p className="mt-1 text-sm text-fm-muted">
-                🌙 {r.noches ?? "—"} noches · 👥 {r.cant_personas} personas
+                🌙 {r.noches ?? "—"} noches · 👥 {r.adultos}A {r.ninos}N · 🐾 {r.mascotas ?? 0}
               </p>
             </div>
           );
@@ -425,12 +595,29 @@ export function ReservasAdminClient({
       <ReservaDetalle
         open={detalleOpen}
         reserva={detalle}
+        whatsappE164={whatsappE164}
+        whatsappMensaje={whatsappMensajeActivo}
+        nombreComplejo={nombreComplejo}
         onClose={() => {
           setDetalleOpen(false);
           setDetalle(null);
         }}
       />
       <NuevaReservaModal open={nuevaOpen} onClose={() => setNuevaOpen(false)} casas={casasActivas} />
+
+      <EditarMensajeWhatsappModal
+        open={modalMensajeOpen}
+        mensaje={mensajeEditado}
+        onClose={() => {
+          setModalMensajeOpen(false);
+          setMensajeGuardadoOk(false);
+        }}
+        onChange={(val) => setMensajeEditado(val)}
+        onRestaurar={() => setMensajeEditado(WHATSAPP_MENSAJE_DEFAULT)}
+        onGuardar={handleGuardarMensaje}
+        guardando={guardandoMensaje}
+        guardadoOk={mensajeGuardadoOk}
+      />
 
       <AnimateConfirmDelete
         reserva={confirmDelete}

@@ -131,7 +131,7 @@ export function ReservasClient({
               <TableHead>Fecha Desde</TableHead>
               <TableHead>Fecha Hasta</TableHead>
               <TableHead>Casa</TableHead>
-              <TableHead>Personas</TableHead>
+              <TableHead>A / N / Masc.</TableHead>
               <TableHead>Mascotas</TableHead>
               <TableHead>Comprobante</TableHead>
               <TableHead>Saldo</TableHead>
@@ -152,7 +152,9 @@ export function ReservasClient({
                   <TableCell>{formatFecha(r.fecha_desde)}</TableCell>
                   <TableCell>{formatFecha(r.fecha_hasta)}</TableCell>
                   <TableCell>{r.casas?.nombre ?? "—"}</TableCell>
-                  <TableCell>{r.cant_personas}</TableCell>
+                  <TableCell className="text-xs">
+                    {r.adultos}/{r.ninos}/{r.mascotas ?? 0}
+                  </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="font-normal">
                       {mascotasLabel(r.mascotas)}

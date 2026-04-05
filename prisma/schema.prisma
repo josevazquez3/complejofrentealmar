@@ -33,6 +33,9 @@ model Configuracion {
   descripcionHome    String?  @map("descripcion_home")
   ubicacionDireccion String?  @map("ubicacion_direccion")
   mapaQuery          String?  @map("mapa_query")
+  /// Plantilla del mensaje wa.me (placeholders: {nombre}, {apellido}, {complejo}, etc.).
+  whatsappMensaje    String   @default("") @map("whatsapp_mensaje")
+  /// WhatsApp del complejo (solo dígitos, código país): sitio público y confirmación wa.me en panel admin.
   whatsappE164       String?  @map("whatsapp_e164")
   emailContacto      String?  @map("email_contacto")
   facebookUrl        String?  @map("facebook_url")
@@ -67,7 +70,8 @@ model Reserva {
   casaId         String   @map("casa_id") @db.Uuid
   fechaDesde     DateTime @map("fecha_desde") @db.Date
   fechaHasta     DateTime @map("fecha_hasta") @db.Date
-  cantPersonas   Int      @map("cant_personas")
+  adultos        Int      @default(1)
+  ninos          Int      @default(0)
   mascotas       Int      @default(0)
   comprobanteUrl String?  @map("comprobante_url")
   saldoReserva   Decimal? @map("saldo_reserva") @db.Decimal(10, 2)

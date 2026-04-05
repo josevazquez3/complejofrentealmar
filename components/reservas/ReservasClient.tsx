@@ -109,7 +109,9 @@ export function ReservasClient({
   const [apellido, setApellido] = useState("");
   const [email, setEmail] = useState("");
   const [telefono, setTelefono] = useState("");
-  const [personas, setPersonas] = useState(1);
+  const [adultos, setAdultos] = useState(1);
+  const [ninos, setNinos] = useState(0);
+  const [mascotas, setMascotas] = useState(0);
   const [mensaje, setMensaje] = useState("");
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -150,9 +152,13 @@ export function ReservasClient({
   }, [casaId]);
 
   useEffect(() => {
-    if (casaSeleccionada) {
-      setPersonas((p) => Math.min(p, casaSeleccionada.capacidad_personas));
-    }
+    if (!casaSeleccionada) return;
+    const cap = casaSeleccionada.capacidad_personas;
+    setAdultos((aPrev) => {
+      const a = Math.min(Math.max(1, aPrev), Math.min(10, cap));
+      setNinos((nPrev) => Math.min(Math.max(0, nPrev), Math.max(0, cap - a)));
+      return a;
+    });
   }, [casaSeleccionada]);
 
   /** Tras elegir unidad, el calendario queda debajo; acercamos la vista (antes FadeInSection lo dejaba invisible hasta scrollear). */
@@ -194,6 +200,10 @@ export function ReservasClient({
   const noches =
     desdeYmd && hastaYmd && hastaYmd > desdeYmd ? nochesEntre(desdeYmd, hastaYmd) : 0;
 
+  const capHuespedes = casaSeleccionada?.capacidad_personas ?? 0;
+  const maxAdultosOpcion = Math.min(10, Math.max(1, capHuespedes));
+  const maxNinosOpcion = Math.min(10, Math.max(0, capHuespedes - adultos));
+
   function validate(): boolean {
     const e: Record<string, string> = {};
     if (!nombre.trim()) e.nombre = "Requerido";
@@ -201,7 +211,12 @@ export function ReservasClient({
     if (!email.trim()) e.email = "Requerido";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = "Email inválido";
     if (!telefono.trim()) e.telefono = "Requerido";
-    if (!personas || personas < 1) e.personas = "Requerido";
+    if (!Number.isFinite(adultos) || adultos < 1) e.adultos = "Requerido";
+    if (!Number.isFinite(ninos) || ninos < 0) e.ninos = "Valor inválido";
+    if (!Number.isFinite(mascotas) || mascotas < 0 || mascotas > 5) e.mascotas = "Entre 0 y 5";
+    if (casaSeleccionada && adultos + ninos > casaSeleccionada.capacidad_personas) {
+      e.ninos = `Máximo ${casaSeleccionada.capacidad_personas} personas (adultos + niños).`;
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -219,7 +234,9 @@ export function ReservasClient({
       telefono: telefono.trim(),
       fecha_desde: desdeYmd,
       fecha_hasta: hastaYmd,
-      personas,
+      adultos,
+      ninos,
+      mascotas,
       mensaje: mensaje.trim() || undefined,
     });
     setLoading(false);
@@ -238,7 +255,9 @@ export function ReservasClient({
     setApellido("");
     setEmail("");
     setTelefono("");
-    setPersonas(1);
+    setAdultos(1);
+    setNinos(0);
+    setMascotas(0);
     setMensaje("");
     setErrors({});
     setSuccess(false);
@@ -257,6 +276,17 @@ export function ReservasClient({
           <span className="font-medium text-fm-text">{email}</span> o{" "}
           <span className="font-medium text-fm-text">{telefono}</span>.
         </p>
+        <ul className="mx-auto mt-6 max-w-sm space-y-1 rounded-lg border border-fm-border bg-gray-50 px-4 py-3 text-left text-sm text-fm-muted">
+          <li>
+            <span className="font-medium text-fm-text">Adultos:</span> {adultos}
+          </li>
+          <li>
+            <span className="font-medium text-fm-text">Niños:</span> {ninos}
+          </li>
+          <li>
+            <span className="font-medium text-fm-text">Mascotas:</span> {mascotas}
+          </li>
+        </ul>
         <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Link
             href="/"
@@ -439,20 +469,56 @@ export function ReservasClient({
                 {errors.telefono ? <p className="mt-1 text-xs text-fm-red">{errors.telefono}</p> : null}
               </div>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Personas *</label>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Cantidad de Adultos *</label>
+                <select
+                  value={adultos}
+                  onChange={(e) => {
+                    const a = Number(e.target.value);
+                    setAdultos(a);
+                    setNinos((n) => Math.min(n, Math.max(0, capHuespedes - a)));
+                  }}
+                  className="w-full rounded-lg border border-fm-border px-4 py-3 outline-none ring-fm-red focus:ring-2"
+                >
+                  {Array.from({ length: maxAdultosOpcion }, (_, i) => i + 1).map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+                {errors.adultos ? <p className="mt-1 text-xs text-fm-red">{errors.adultos}</p> : null}
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Cantidad de Niños</label>
+                <select
+                  value={ninos}
+                  onChange={(e) => setNinos(Number(e.target.value))}
+                  className="w-full rounded-lg border border-fm-border px-4 py-3 outline-none ring-fm-red focus:ring-2"
+                >
+                  {Array.from({ length: maxNinosOpcion + 1 }, (_, i) => i).map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+                {errors.ninos ? <p className="mt-1 text-xs text-fm-red">{errors.ninos}</p> : null}
+              </div>
+            </div>
+            <div className="sm:w-1/2">
+              <label className="mb-1 block text-sm font-medium text-gray-700">Cantidad de Mascotas</label>
               <select
-                value={personas}
-                onChange={(e) => setPersonas(Number(e.target.value))}
-                className="w-full rounded-lg border border-fm-border px-4 py-3 outline-none ring-fm-red focus:ring-2 sm:max-w-xs"
+                value={mascotas}
+                onChange={(e) => setMascotas(Number(e.target.value))}
+                className="w-full rounded-lg border border-fm-border px-4 py-3 outline-none ring-fm-red focus:ring-2"
               >
-                {Array.from({ length: casaSeleccionada.capacidad_personas }, (_, i) => i + 1).map((n) => (
+                {Array.from({ length: 6 }, (_, i) => i).map((n) => (
                   <option key={n} value={n}>
                     {n}
                   </option>
                 ))}
               </select>
-              {errors.personas ? <p className="mt-1 text-xs text-fm-red">{errors.personas}</p> : null}
+              {errors.mascotas ? <p className="mt-1 text-xs text-fm-red">{errors.mascotas}</p> : null}
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Mensaje (opcional)</label>
@@ -473,7 +539,13 @@ export function ReservasClient({
                 {formatFechaAR(hastaYmd)} ({noches} noches)
               </p>
               <p className="mt-2">
-                <span className="font-medium text-gray-800">Personas:</span> {personas}
+                <span className="font-medium text-gray-800">Adultos:</span> {adultos}
+              </p>
+              <p className="mt-1">
+                <span className="font-medium text-gray-800">Niños:</span> {ninos}
+              </p>
+              <p className="mt-1">
+                <span className="font-medium text-gray-800">Mascotas:</span> {mascotas}
               </p>
               {casaSeleccionada.precio_noche != null && casaSeleccionada.precio_noche > 0 ? (
                 <p className="mt-2 font-semibold text-fm-red">

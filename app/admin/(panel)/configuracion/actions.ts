@@ -13,6 +13,7 @@ function configuracionFromForm(formData: FormData) {
     descripcionHome: String(formData.get("descripcion_home") ?? "").trim() || null,
     ubicacionDireccion: String(formData.get("ubicacion_direccion") ?? "").trim() || null,
     mapaQuery: String(formData.get("mapa_query") ?? "").trim() || null,
+    whatsappMensaje: String(formData.get("whatsapp_mensaje") ?? ""),
     whatsappE164: String(formData.get("whatsapp_e164") ?? "").replace(/\D/g, "") || null,
     emailContacto: String(formData.get("email_contacto") ?? "").trim() || null,
     facebookUrl: String(formData.get("facebook_url") ?? "").trim() || null,

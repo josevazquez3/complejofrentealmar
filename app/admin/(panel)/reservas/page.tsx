@@ -1,5 +1,6 @@
 import { ReservasAdminClient } from "@/components/admin/reservas/ReservasAdminClient";
-import { getCasasActivas, getReservasAdminPage } from "@/lib/queries";
+import { mergeConfigWithFallback } from "@/lib/config-fallback";
+import { getCasasActivas, getConfiguracion, getReservasAdminPage } from "@/lib/queries";
 import { prisma } from "@/lib/prisma";
 import type { Casa, EstadoReserva, ReservaAdmin } from "@/types";
 
@@ -24,11 +25,13 @@ export default async function AdminReservasPage({ searchParams }: PageProps) {
       ? estadoStr
       : "todos";
 
-  const [{ rows, total, pageSize }, casas, kpiRowsRaw] = await Promise.all([
+  const [{ rows, total, pageSize }, casas, kpiRowsRaw, rawConfig] = await Promise.all([
     getReservasAdminPage(page),
     getCasasActivas(),
     prisma.reserva.findMany({ select: { estado: true, fechaDesde: true } }),
+    getConfiguracion(),
   ]);
+  const cfg = mergeConfigWithFallback(rawConfig);
 
   const hoy = new Date().toISOString().split("T")[0];
   const list = kpiRowsRaw.map((r) => ({
@@ -53,6 +56,10 @@ export default async function AdminReservasPage({ searchParams }: PageProps) {
       total={total}
       kpis={{ pendientes, confirmadas, canceladas, proximas }}
       initialEstado={initialEstado}
+      configuracionCompleta={cfg}
+      whatsappE164={cfg.whatsapp_e164 ?? ""}
+      whatsappMensaje={cfg.whatsapp_mensaje}
+      nombreComplejo={cfg.complejo_nombre}
     />
   );
 }

@@ -33,12 +33,17 @@ export function NuevaReservaModal({
   const [apellido, setApellido] = useState("");
   const [email, setEmail] = useState("");
   const [telefono, setTelefono] = useState("");
-  const [personas, setPersonas] = useState(1);
+  const [adultos, setAdultos] = useState(1);
+  const [ninos, setNinos] = useState(0);
+  const [mascotas, setMascotas] = useState(0);
   const [mensaje, setMensaje] = useState("");
   const [loading, setLoading] = useState(false);
   const [bloqueadas, setBloqueadas] = useState<FechaBloqueada[]>([]);
 
   const casa = useMemo(() => casas.find((c) => c.id === casaId) ?? null, [casas, casaId]);
+  const capHuespedes = casa?.capacidad_personas ?? 0;
+  const maxAdultosOpcion = Math.min(10, Math.max(1, capHuespedes));
+  const maxNinosOpcion = Math.min(10, Math.max(0, capHuespedes - adultos));
 
   useEffect(() => {
     if (!open) return;
@@ -66,7 +71,12 @@ export function NuevaReservaModal({
 
   useEffect(() => {
     if (!casa) return;
-    setPersonas((p) => Math.min(p, casa.capacidad_personas));
+    const cap = casa.capacidad_personas;
+    setAdultos((aPrev) => {
+      const a = Math.min(Math.max(1, aPrev), Math.min(10, cap));
+      setNinos((nPrev) => Math.min(Math.max(0, nPrev), Math.max(0, cap - a)));
+      return a;
+    });
   }, [casa]);
 
   function validate(): string | null {
@@ -77,8 +87,12 @@ export function NuevaReservaModal({
     if (!nombre.trim() || !apellido.trim()) return "Completá nombre y apellido.";
     if (!email.trim() || !telefono.trim()) return "Completá email y teléfono.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return "Email inválido.";
-    if (!Number.isFinite(personas) || personas < 1) return "Personas inválido.";
-    if (casa && personas > casa.capacidad_personas) return `Máximo ${casa.capacidad_personas} personas.`;
+    if (!Number.isFinite(adultos) || adultos < 1 || adultos > 10) return "Adultos inválido (1 a 10).";
+    if (!Number.isFinite(ninos) || ninos < 0 || ninos > 10) return "Niños inválido (0 a 10).";
+    if (!Number.isFinite(mascotas) || mascotas < 0 || mascotas > 5) return "Mascotas inválido (0 a 5).";
+    if (casa && adultos + ninos > casa.capacidad_personas) {
+      return `Máximo ${casa.capacidad_personas} personas (adultos + niños).`;
+    }
     if (rangoSolapaBloqueados(fechaDesde, fechaHasta, bloqueadas)) return "Esas fechas ya están ocupadas.";
     return null;
   }
@@ -99,7 +113,9 @@ export function NuevaReservaModal({
       telefono: telefono.trim(),
       fecha_desde: fechaDesde,
       fecha_hasta: fechaHasta,
-      personas,
+      adultos,
+      ninos,
+      mascotas,
       mensaje: mensaje.trim() || undefined,
     };
     const res = await crearReservaAdmin(payload);
@@ -113,7 +129,9 @@ export function NuevaReservaModal({
       setApellido("");
       setEmail("");
       setTelefono("");
-      setPersonas(1);
+      setAdultos(1);
+      setNinos(0);
+      setMascotas(0);
       setMensaje("");
     } else {
       showToast(res.error ?? "No se pudo crear.", "error");
@@ -227,15 +245,53 @@ export function NuevaReservaModal({
                   />
                 </div>
               </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Personas *</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={personas}
-                  onChange={(e) => setPersonas(Number(e.target.value))}
-                  className="w-full rounded-lg border border-fm-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-fm-red sm:max-w-xs"
-                />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Cantidad de Adultos *</label>
+                  <select
+                    value={adultos}
+                    onChange={(e) => {
+                      const a = Number(e.target.value);
+                      setAdultos(a);
+                      setNinos((n) => Math.min(n, Math.max(0, capHuespedes - a)));
+                    }}
+                    className="w-full rounded-lg border border-fm-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-fm-red"
+                  >
+                    {Array.from({ length: maxAdultosOpcion }, (_, i) => i + 1).map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Cantidad de Niños</label>
+                  <select
+                    value={ninos}
+                    onChange={(e) => setNinos(Number(e.target.value))}
+                    className="w-full rounded-lg border border-fm-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-fm-red"
+                  >
+                    {Array.from({ length: maxNinosOpcion + 1 }, (_, i) => i).map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="sm:w-1/2">
+                <label className="mb-1 block text-sm font-medium text-gray-700">Cantidad de Mascotas</label>
+                <select
+                  value={mascotas}
+                  onChange={(e) => setMascotas(Number(e.target.value))}
+                  className="w-full rounded-lg border border-fm-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-fm-red"
+                >
+                  {Array.from({ length: 6 }, (_, i) => i).map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Mensaje</label>
