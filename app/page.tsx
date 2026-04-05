@@ -41,7 +41,7 @@ async function homeDataTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> 
 }
 
 export default async function HomePage() {
-  const casasFallback: CasasLoadResult = { casas: [], failed: true };
+  const casasFallback: CasasLoadResult = { casas: [], failed: true, noDatabase: false };
   const [rawConfig, casasResult, heroUrls, inicio, marketingUnidades, secEquip, secServ] =
     await Promise.all([
       homeDataTimeout(getConfiguracion(), null),

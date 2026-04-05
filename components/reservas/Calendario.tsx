@@ -182,6 +182,10 @@ export function Calendario({
           />
         </div>
       </div>
+      <p className="mt-4 text-center text-xs text-fm-muted">
+        Leyenda: días tachados en gris — no disponibles (ocupados o ya pasados). Podés tocar una fecha de ingreso y
+        otra de salida para armar el rango.
+      </p>
     </div>
   );
 }

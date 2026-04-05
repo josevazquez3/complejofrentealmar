@@ -1,7 +1,23 @@
+import { mkdir, unlink, writeFile } from "fs/promises";
+import path from "path";
 import { del, put } from "@vercel/blob";
 
+function blobToken(): string | undefined {
+  return process.env.BLOB_READ_WRITE_TOKEN?.trim() || undefined;
+}
+
+/** En desarrollo, sin token, las subidas van a `public/uploads/` (no usar en producción sin Blob). */
+function localDevUploadFallback(): boolean {
+  return process.env.NODE_ENV === "development" && !blobToken();
+}
+
+function localUploadsFilePath(safePath: string): string {
+  const parts = safePath.split("/").filter(Boolean);
+  return path.join(process.cwd(), "public", "uploads", ...parts);
+}
+
 /**
- * Sube un archivo público a Vercel Blob (`BLOB_READ_WRITE_TOKEN` en servidor).
+ * Sube un archivo público a Vercel Blob (`BLOB_READ_WRITE_TOKEN`), o en desarrollo sin token a `public/uploads/`.
  */
 export async function uploadToBlob(
   pathname: string,
@@ -21,15 +37,53 @@ export async function uploadToBlob(
   } else {
     payload = Buffer.from([]);
   }
+
+  if (localDevUploadFallback()) {
+    const filePath = localUploadsFilePath(safePath);
+    await mkdir(path.dirname(filePath), { recursive: true });
+    const buf = Buffer.isBuffer(payload)
+      ? payload
+      : Buffer.from(await (payload as globalThis.Blob).arrayBuffer());
+    await writeFile(filePath, buf);
+    const url = `/${["uploads", ...safePath.split("/").filter(Boolean)].join("/")}`;
+    return { url };
+  }
+
+  const token = blobToken();
+  if (!token) {
+    throw new Error(
+      "Falta BLOB_READ_WRITE_TOKEN. En Vercel: Storage → Blob → creá token y agregalo a las variables de entorno. En local: npx vercel env pull .env.local o pegá el token en .env.local."
+    );
+  }
+
   const blob = await put(safePath, payload, {
     access: "public",
     contentType: contentType || "application/octet-stream",
+    token,
   });
   return { url: blob.url };
 }
 
-/** Elimina un blob por su URL pública. */
+/** Elimina un blob por su URL pública, o el archivo en `public/uploads/` en desarrollo local. */
 export async function deleteFromBlob(url: string): Promise<void> {
   if (!url?.trim()) return;
-  await del(url);
+
+  if (url.startsWith("/uploads/")) {
+    if (process.env.NODE_ENV === "development") {
+      const rel = url.replace(/^\/uploads\//, "");
+      const filePath = localUploadsFilePath(rel);
+      try {
+        await unlink(filePath);
+      } catch {
+        /* ya borrado o no existe */
+      }
+    }
+    return;
+  }
+
+  const token = blobToken();
+  if (!token) {
+    return;
+  }
+  await del(url, { token });
 }

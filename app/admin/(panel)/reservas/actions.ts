@@ -63,9 +63,12 @@ export async function cambiarEstadoReserva(
   estado: EstadoReserva
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
+    const row = await prisma.reserva.findUnique({ where: { id }, select: { casaId: true } });
     await updateEstadoReserva(id, estado);
     revalidatePath("/admin/reservas");
     revalidatePath("/admin/dashboard");
+    revalidatePath("/reservas");
+    if (row?.casaId) revalidatePath(`/casas/${row.casaId}`);
     return { ok: true };
   } catch (e: unknown) {
     return { ok: false, error: e instanceof Error ? e.message : "No se pudo cambiar el estado." };
@@ -76,9 +79,12 @@ export async function eliminarReservaAdmin(
   id: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
+    const row = await prisma.reserva.findUnique({ where: { id }, select: { casaId: true } });
     await deleteReserva(id);
     revalidatePath("/admin/reservas");
     revalidatePath("/admin/dashboard");
+    revalidatePath("/reservas");
+    if (row?.casaId) revalidatePath(`/casas/${row.casaId}`);
     return { ok: true };
   } catch (e: unknown) {
     return { ok: false, error: e instanceof Error ? e.message : "No se pudo eliminar la reserva." };

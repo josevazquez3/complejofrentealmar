@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { motion } from "framer-motion";
 import { Settings } from "lucide-react";
@@ -20,14 +21,22 @@ const section = {
   }),
 };
 
-export function ConfiguracionForm({ initial }: { initial: Configuracion }) {
+export function ConfiguracionForm({
+  initial,
+  sinFilaEnBd = false,
+}: {
+  initial: Configuracion;
+  sinFilaEnBd?: boolean;
+}) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   function onSubmit(formData: FormData) {
     startTransition(async () => {
       const res = await guardarConfiguracion(formData);
       if (res.success) {
-        toast.success("Cambios guardados");
+        toast.success(sinFilaEnBd ? "Configuración creada" : "Cambios guardados");
+        router.refresh();
       } else {
         toast.error(res.error ?? "No se pudo guardar");
       }
@@ -36,6 +45,14 @@ export function ConfiguracionForm({ initial }: { initial: Configuracion }) {
 
   return (
     <div>
+      {sinFilaEnBd ? (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-nautico-900">
+          <p className="font-medium">Aún no hay registro en la tabla configuración.</p>
+          <p className="mt-1 text-nautico-800/90">
+            Completá el formulario y guardá: se creará la fila automáticamente (no hace falta SQL manual).
+          </p>
+        </div>
+      ) : null}
       <div className="mb-8 flex items-center gap-3">
         <Settings className="h-8 w-8 text-arena-600" aria-hidden />
         <h1 className="font-display text-3xl font-semibold text-nautico-900">
@@ -164,7 +181,7 @@ export function ConfiguracionForm({ initial }: { initial: Configuracion }) {
           disabled={pending}
           className="w-full rounded-xl bg-arena-500 py-6 text-base text-nautico-900 hover:bg-arena-400"
         >
-          {pending ? "Guardando…" : "Guardar cambios"}
+          {pending ? "Guardando…" : sinFilaEnBd ? "Crear configuración" : "Guardar cambios"}
         </Button>
       </form>
     </div>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
+  Building2,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -31,6 +32,7 @@ const links = [
     gestoresOnly: true,
   },
   { href: "/admin/reservas", label: "Reservas", icon: CalendarDays, key: "reservas" as const, gestoresOnly: false },
+  { href: "/admin/casas", label: "Casas", icon: Building2, key: undefined, gestoresOnly: false },
   { href: "/admin/inventario", label: "Inventario", icon: Package, key: "inventario" as const, gestoresOnly: false },
   { href: "/admin/tesoreria", label: "Tesorería", icon: Wallet, key: "tesoreria" as const, gestoresOnly: false },
   { href: "/admin/configuracion", label: "Configuración", icon: FiSettings, key: undefined, gestoresOnly: false },

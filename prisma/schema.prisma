@@ -42,6 +42,8 @@ model Configuracion {
   @@map("configuracion")
 }
 
+/// Borrado: `reservas` e `inventario_items` en cascada; `tesoreria_movimientos` y `tesoreria` ponen `casa_id` en NULL (ver relaciones).
+/// Si el error de FK persiste, la BD puede estar desalineada con este schema: `npx prisma migrate deploy`.
 model Casa {
   id                String   @id @default(uuid()) @db.Uuid
   nombre            String

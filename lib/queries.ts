@@ -168,18 +168,24 @@ export const getConfiguracion = cache(async (): Promise<Configuracion | null> =>
   }
 });
 
-export type CasasLoadResult = { casas: Casa[]; failed: boolean };
+export type CasasLoadResult = {
+  casas: Casa[];
+  /** Error al consultar la BD (timeout, conexión, etc.). */
+  failed: boolean;
+  /** No hay `DATABASE_URL` configurada. */
+  noDatabase: boolean;
+};
 
 export const getCasasActivasForHome = cache(async (): Promise<CasasLoadResult> => {
-  if (!hasDb()) return { casas: [], failed: false };
+  if (!hasDb()) return { casas: [], failed: false, noDatabase: true };
   try {
     const rows = await prisma.casa.findMany({
       where: { activa: true },
       orderBy: { nombre: "asc" },
     });
-    return { casas: rows.map(mapCasa), failed: false };
+    return { casas: rows.map(mapCasa), failed: false, noDatabase: false };
   } catch {
-    return { casas: [], failed: true };
+    return { casas: [], failed: true, noDatabase: false };
   }
 });
 
@@ -187,6 +193,17 @@ export const getCasasActivas = cache(async (): Promise<Casa[]> => {
   const { casas } = await getCasasActivasForHome();
   return casas;
 });
+
+/** Listado completo para el panel (incluye inactivas). Las reservas públicas solo usan `activa: true`. */
+export async function getAllCasasAdmin(): Promise<Casa[]> {
+  if (!hasDb()) return [];
+  try {
+    const rows = await prisma.casa.findMany({ orderBy: { nombre: "asc" } });
+    return rows.map(mapCasa);
+  } catch {
+    return [];
+  }
+}
 
 export const getCasaById = cache(async (id: string): Promise<Casa | null> => {
   if (!hasDb()) return null;
@@ -319,9 +336,9 @@ export async function getSeccionTextoPublic(id: SeccionTextoId): Promise<Seccion
   }
 }
 
-export const getCasasParaReservas = cache(async (): Promise<Casa[]> => {
-  const { casas } = await getCasasActivasForHome();
-  return casas;
+/** Misma carga que el home: solo casas activas (reservas públicas). */
+export const getCasasParaReservas = cache(async (): Promise<CasasLoadResult> => {
+  return getCasasActivasForHome();
 });
 
 export async function getFechasBloqueadas(casaId: string): Promise<FechaBloqueada[]> {

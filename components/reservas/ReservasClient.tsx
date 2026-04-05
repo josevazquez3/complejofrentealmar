@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle, Loader2, Users } from "lucide-react";
 import { crearReserva } from "@/app/actions/reservas";
-import { FadeInSection } from "@/components/home/FadeInSection";
 import { Calendario } from "@/components/reservas/Calendario";
 import { formatFechaAR, parseYmdLocal, toYmdLocal } from "@/lib/date-ymd";
 import { rangoSolapaBloqueados } from "@/lib/reservas-disponibilidad";
@@ -38,7 +37,37 @@ function descripcionUnaLinea(casa: Casa): string {
   return line.length > 90 ? `${line.slice(0, 90)}…` : line;
 }
 
-export function ReservasClient({ casas }: { casas: Casa[] }) {
+/** Rutas locales: optimización Next. URLs absolutas: <img> para no romper si el host no está en `images.remotePatterns`. */
+function CasaCardImage({ src }: { src: string }) {
+  if (src.startsWith("/")) {
+    return (
+      <Image
+        src={src}
+        alt=""
+        fill
+        className="object-cover"
+        sizes="(max-width: 768px) 100vw, 33vw"
+        placeholder="blur"
+        blurDataURL={BLUR_DATA_URL}
+      />
+    );
+  }
+  return <img src={src} alt="" className="absolute inset-0 h-full w-full object-cover" />;
+}
+
+export function ReservasClient({
+  casas,
+  casasLoadFailed = false,
+  noDatabase = false,
+  whatsappE164,
+  emailContacto,
+}: {
+  casas: Casa[];
+  casasLoadFailed?: boolean;
+  noDatabase?: boolean;
+  whatsappE164?: string | null;
+  emailContacto?: string | null;
+}) {
   const searchParams = useSearchParams();
   const { showToast } = useToast();
 
@@ -99,6 +128,15 @@ export function ReservasClient({ casas }: { casas: Casa[] }) {
     if (casaSeleccionada) {
       setPersonas((p) => Math.min(p, casaSeleccionada.capacidad_personas));
     }
+  }, [casaSeleccionada]);
+
+  /** Tras elegir unidad, el calendario queda debajo; acercamos la vista (antes FadeInSection lo dejaba invisible hasta scrollear). */
+  useEffect(() => {
+    if (!casaSeleccionada) return;
+    const id = window.setTimeout(() => {
+      document.getElementById("reservas-calendario")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+    return () => clearTimeout(id);
   }, [casaSeleccionada]);
 
   const handleSelectFecha = useCallback(
@@ -189,8 +227,10 @@ export function ReservasClient({ casas }: { casas: Casa[] }) {
         <CheckCircle className="mx-auto h-16 w-16 text-green-600" aria-hidden />
         <h2 className="mt-6 text-2xl font-bold text-gray-800">¡Solicitud enviada!</h2>
         <p className="mt-4 text-fm-muted">
-          Nos comunicaremos a la brevedad al email <span className="font-medium text-fm-text">{email}</span> o al
-          teléfono <span className="font-medium text-fm-text">{telefono}</span>.
+          Tu reserva quedó registrada como <strong className="text-fm-text">pendiente</strong>. El administrador la
+          revisará y te confirmará por{" "}
+          <span className="font-medium text-fm-text">{email}</span> o{" "}
+          <span className="font-medium text-fm-text">{telefono}</span>.
         </p>
         <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Link
@@ -214,10 +254,51 @@ export function ReservasClient({ casas }: { casas: Casa[] }) {
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
       <h1 className="mb-2 text-center text-2xl font-bold tracking-widest text-fm-text">RESERVÁ TU UNIDAD</h1>
-      <p className="mb-8 text-center text-fm-muted">
-        Seleccioná la unidad, elegí tus fechas y enviá tu consulta.
+      <p className="mb-2 text-center text-fm-muted">
+        Seleccioná la unidad, elegí tus fechas disponibles y completá tus datos. La solicitud queda{" "}
+        <strong className="text-fm-text">pendiente de confirmación</strong> por el complejo.
+      </p>
+      <p className="mb-8 text-center text-sm text-fm-muted">
+        En el calendario, las fechas tachadas o en gris ya están ocupadas (reservas confirmadas o en revisión) o son
+        pasadas.
       </p>
 
+      {casas.length === 0 ? (
+        <div className="mx-auto max-w-xl rounded-xl border border-amber-200 bg-amber-50/90 px-6 py-8 text-center shadow-sm">
+          <p className="text-lg font-semibold text-fm-text">
+            {noDatabase
+              ? "Reservas no disponibles (sin base de datos)"
+              : casasLoadFailed
+                ? "No pudimos cargar las unidades"
+                : "No hay unidades para elegir aún"}
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-fm-muted">
+            {noDatabase
+              ? "Falta configurar la base de datos en el servidor (variable DATABASE_URL). Si vos administrás el sitio, revisá el archivo .env.local o el despliegue en Vercel."
+              : casasLoadFailed
+                ? "Hubo un error al consultar la base de datos. Probá recargar la página en unos minutos."
+                : "En /admin/casas activá el interruptor «Activa» para cada unidad (CASA 1, CASA 2, etc.). Si en el inicio ves «unidades de marketing», son otro tipo de dato: igual necesitás casas activas en la tabla casas para reservar acá. Si ya están activas y no ves cambios, probá recargar sin caché (Ctrl+F5)."}
+          </p>
+          <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            {whatsappE164 ? (
+              <a
+                href={`https://wa.me/${whatsappE164.replace(/\D/g, "")}?text=${encodeURIComponent("Hola, quiero consultar por una reserva.")}`}
+                className="inline-flex w-full items-center justify-center rounded-lg bg-fm-red px-5 py-3 text-sm font-semibold uppercase tracking-wide text-white transition-colors hover:bg-red-700 sm:w-auto"
+              >
+                Escribir por WhatsApp
+              </a>
+            ) : null}
+            {emailContacto ? (
+              <a
+                href={`mailto:${emailContacto}?subject=${encodeURIComponent("Consulta por reserva")}`}
+                className="inline-flex w-full items-center justify-center rounded-lg border-2 border-fm-border bg-white px-5 py-3 text-sm font-semibold uppercase tracking-wide text-fm-text transition-colors hover:bg-gray-50 sm:w-auto"
+              >
+                Enviar email
+              </a>
+            ) : null}
+          </div>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {casas.map((casa) => {
           const sel = casaId === casa.id;
@@ -234,15 +315,7 @@ export function ReservasClient({ casas }: { casas: Casa[] }) {
             >
               <div className="relative h-40 w-full bg-gray-100">
                 {img ? (
-                  <Image
-                    src={img}
-                    alt=""
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, 33vw"
-                    placeholder="blur"
-                    blurDataURL={BLUR_DATA_URL}
-                  />
+                  <CasaCardImage src={img} />
                 ) : (
                   <div className="flex h-full items-center justify-center text-sm text-fm-muted">Sin foto</div>
                 )}
@@ -259,9 +332,10 @@ export function ReservasClient({ casas }: { casas: Casa[] }) {
           );
         })}
       </div>
+      )}
 
       {casaSeleccionada ? (
-        <FadeInSection className="mt-12">
+        <div id="reservas-calendario" className="mt-12 scroll-mt-8">
           <h2 className="mb-6 text-center text-2xl font-bold tracking-widest text-fm-text">
             ELEGÍ TUS FECHAS
           </h2>
@@ -282,11 +356,11 @@ export function ReservasClient({ casas }: { casas: Casa[] }) {
               Elegí la fecha de ingreso y luego la de salida.
             </p>
           )}
-        </FadeInSection>
+        </div>
       ) : null}
 
       {casaSeleccionada && desdeYmd && hastaYmd ? (
-        <FadeInSection className="mt-12">
+        <div className="mt-12 scroll-mt-8">
           <h2 className="mb-6 text-center text-2xl font-bold tracking-widest text-fm-text">
             TUS DATOS
           </h2>
@@ -297,6 +371,7 @@ export function ReservasClient({ casas }: { casas: Casa[] }) {
                 <input
                   value={nombre}
                   onChange={(e) => setNombre(e.target.value)}
+                  required
                   className="w-full rounded-lg border border-fm-border px-4 py-3 outline-none ring-fm-red focus:ring-2"
                   autoComplete="given-name"
                 />
@@ -307,6 +382,7 @@ export function ReservasClient({ casas }: { casas: Casa[] }) {
                 <input
                   value={apellido}
                   onChange={(e) => setApellido(e.target.value)}
+                  required
                   className="w-full rounded-lg border border-fm-border px-4 py-3 outline-none ring-fm-red focus:ring-2"
                   autoComplete="family-name"
                 />
@@ -320,6 +396,7 @@ export function ReservasClient({ casas }: { casas: Casa[] }) {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  required
                   className="w-full rounded-lg border border-fm-border px-4 py-3 outline-none ring-fm-red focus:ring-2"
                   autoComplete="email"
                 />
@@ -330,6 +407,7 @@ export function ReservasClient({ casas }: { casas: Casa[] }) {
                 <input
                   value={telefono}
                   onChange={(e) => setTelefono(e.target.value)}
+                  required
                   className="w-full rounded-lg border border-fm-border px-4 py-3 outline-none ring-fm-red focus:ring-2"
                   autoComplete="tel"
                 />
@@ -388,7 +466,7 @@ export function ReservasClient({ casas }: { casas: Casa[] }) {
               ENVIAR SOLICITUD DE RESERVA
             </button>
           </form>
-        </FadeInSection>
+        </div>
       ) : null}
     </div>
   );
