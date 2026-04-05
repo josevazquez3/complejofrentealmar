@@ -37,6 +37,7 @@ model Configuracion {
   emailContacto      String?  @map("email_contacto")
   facebookUrl        String?  @map("facebook_url")
   instagramUrl       String?  @map("instagram_url")
+  youtubeVideoId     String?  @map("youtube_video_id")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   @@map("configuracion")
@@ -214,6 +215,7 @@ model Unidad {
   id          String   @id @default(uuid()) @db.Uuid
   titulo      String
   descripcion String   @default("")
+  precio      String?
   fotos       String[] @default([])
   habilitada  Boolean  @default(true)
   orden       Int      @default(0)

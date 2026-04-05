@@ -8,6 +8,7 @@ import {
   InicioSection,
   ServiciosEditSection,
   UnidadesSection,
+  VideoSectionAdmin,
 } from "./sections";
 
 function TabSkeleton() {
@@ -44,6 +45,11 @@ export default function AdminConfiguracionEditarPage() {
         inicio={
           <Suspense fallback={<TabSkeleton />}>
             <InicioSection />
+          </Suspense>
+        }
+        video={
+          <Suspense fallback={<TabSkeleton />}>
+            <VideoSectionAdmin />
           </Suspense>
         }
         unidades={

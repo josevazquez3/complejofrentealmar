@@ -37,9 +37,34 @@ function descripcionUnaLinea(casa: Casa): string {
   return line.length > 90 ? `${line.slice(0, 90)}…` : line;
 }
 
-/** Rutas locales: optimización Next. URLs absolutas: <img> para no romper si el host no está en `images.remotePatterns`. */
+function usarNextImageRemoto(src: string): boolean {
+  try {
+    const u = new URL(src);
+    if (u.protocol !== "https:") return false;
+    if (u.hostname === "images.unsplash.com") return true;
+    if (u.hostname.endsWith(".public.blob.vercel-storage.com")) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/** Local y dominios permitidos en `next.config` → `next/image`; el resto `<img>` para no romper por host desconocido. */
 function CasaCardImage({ src }: { src: string }) {
   if (src.startsWith("/")) {
+    return (
+      <Image
+        src={src}
+        alt=""
+        fill
+        className="object-cover"
+        sizes="(max-width: 768px) 100vw, 33vw"
+        placeholder="blur"
+        blurDataURL={BLUR_DATA_URL}
+      />
+    );
+  }
+  if (usarNextImageRemoto(src)) {
     return (
       <Image
         src={src}

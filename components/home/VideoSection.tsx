@@ -1,10 +1,7 @@
-"use client";
-
 import { FadeInSection } from "@/components/home/FadeInSection";
-import { env } from "@/lib/env";
 
-export function VideoSection() {
-  const id = env.youtubeVideoId;
+export function VideoSection({ youtubeVideoId }: { youtubeVideoId?: string | null }) {
+  const id = youtubeVideoId?.trim() ?? "";
 
   return (
     <section className="bg-white py-16 text-center">
@@ -29,9 +26,8 @@ export function VideoSection() {
         ) : (
           <div className="mx-auto flex max-w-2xl flex-col items-center gap-3 rounded-lg border border-dashed border-fm-border bg-gray-50 px-6 py-12 text-fm-muted">
             <p className="text-sm">
-              Configurá <code className="rounded bg-white px-1.5 py-0.5 text-fm-text">NEXT_PUBLIC_YOUTUBE_VIDEO_ID</code>{" "}
-              en <code className="rounded bg-white px-1.5 py-0.5 text-fm-text">.env.local</code> con el ID del video
-              del canal Complejo Frente al Mar Azul.
+              Configurá el video en el panel:{" "}
+              <strong className="text-fm-text">Admin → Editar sitio → pestaña Video</strong> (ID o URL de YouTube).
             </p>
           </div>
         )}

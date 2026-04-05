@@ -53,6 +53,11 @@ function mapCasa(c: {
   };
 }
 
+/** Igualar nombres entre `casa.nombre` y `unidad.titulo` (marketing) para reutilizar fotos. */
+function normalizarNombreUnidadFotos(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 function mapConfig(row: {
   id: string;
   complejoNombre: string;
@@ -64,6 +69,7 @@ function mapConfig(row: {
   emailContacto: string | null;
   facebookUrl: string | null;
   instagramUrl: string | null;
+  youtubeVideoId: string | null;
   updatedAt: Date;
 }): Configuracion {
   return {
@@ -77,6 +83,7 @@ function mapConfig(row: {
     email_contacto: row.emailContacto,
     facebook_url: row.facebookUrl,
     instagram_url: row.instagramUrl,
+    youtube_video_id: row.youtubeVideoId,
     updated_at: row.updatedAt.toISOString(),
   };
 }
@@ -179,11 +186,38 @@ export type CasasLoadResult = {
 export const getCasasActivasForHome = cache(async (): Promise<CasasLoadResult> => {
   if (!hasDb()) return { casas: [], failed: false, noDatabase: true };
   try {
-    const rows = await prisma.casa.findMany({
-      where: { activa: true },
-      orderBy: { nombre: "asc" },
+    const [rows, unidades] = await Promise.all([
+      prisma.casa.findMany({
+        where: { activa: true },
+        orderBy: { nombre: "asc" },
+      }),
+      prisma.unidad.findMany({
+        where: { habilitada: true },
+        select: { titulo: true, fotos: true },
+        orderBy: [{ orden: "asc" }, { createdAt: "asc" }],
+      }),
+    ]);
+
+    const fotosPorTitulo = new Map<string, string[]>();
+    for (const u of unidades) {
+      const key = normalizarNombreUnidadFotos(u.titulo);
+      if (!key) continue;
+      if (!fotosPorTitulo.has(key) && u.fotos.length > 0) {
+        fotosPorTitulo.set(key, u.fotos);
+      }
+    }
+
+    const casas: Casa[] = rows.map((row) => {
+      const base = mapCasa(row);
+      if (base.fotos?.length) return base;
+      const alt = fotosPorTitulo.get(normalizarNombreUnidadFotos(row.nombre));
+      if (alt?.length) {
+        return { ...base, fotos: alt };
+      }
+      return base;
     });
-    return { casas: rows.map(mapCasa), failed: false, noDatabase: false };
+
+    return { casas, failed: false, noDatabase: false };
   } catch {
     return { casas: [], failed: true, noDatabase: false };
   }
@@ -282,6 +316,7 @@ export const getUnidadesMarketing = cache(async (): Promise<Unidad[]> => {
       id: u.id,
       titulo: u.titulo,
       descripcion: u.descripcion,
+      precio: u.precio ?? null,
       fotos: u.fotos ?? [],
       habilitada: u.habilitada,
       orden: u.orden,

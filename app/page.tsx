@@ -73,7 +73,7 @@ export default async function HomePage() {
       )}
       <EquipamientoSection titulo={secEquip.titulo} descripcion={secEquip.descripcion} />
       <ServiciosSection titulo={secServ.titulo} descripcion={secServ.descripcion} />
-      <VideoSection />
+      <VideoSection youtubeVideoId={config.youtube_video_id} />
       <MapSection />
     </PublicLayout>
   );

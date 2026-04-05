@@ -6,12 +6,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export function EditarTabsShell({
   carousel,
   inicio,
+  video,
   unidades,
   equipamiento,
   servicios,
 }: {
   carousel: ReactNode;
   inicio: ReactNode;
+  video: ReactNode;
   unidades: ReactNode;
   equipamiento: ReactNode;
   servicios: ReactNode;
@@ -24,6 +26,7 @@ export function EditarTabsShell({
       >
         <TabsTrigger value="carousel">Carrusel</TabsTrigger>
         <TabsTrigger value="inicio">Inicio</TabsTrigger>
+        <TabsTrigger value="video">Video</TabsTrigger>
         <TabsTrigger value="unidades">Unidades</TabsTrigger>
         <TabsTrigger value="equipamiento">Equipamiento</TabsTrigger>
         <TabsTrigger value="servicios">Servicios</TabsTrigger>
@@ -33,6 +36,9 @@ export function EditarTabsShell({
       </TabsContent>
       <TabsContent value="inicio" className="w-full min-h-[200px]">
         {inicio}
+      </TabsContent>
+      <TabsContent value="video" className="w-full min-h-[200px]">
+        {video}
       </TabsContent>
       <TabsContent value="unidades" className="w-full min-h-[200px]">
         {unidades}

@@ -50,6 +50,7 @@ export function UnidadesEditor({ initial }: { initial: Unidad[] }) {
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [fotos, setFotos] = useState<string[]>([]);
+  const [precio, setPrecio] = useState("");
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -64,6 +65,7 @@ export function UnidadesEditor({ initial }: { initial: Unidad[] }) {
     setTitulo("");
     setDescripcion("");
     setFotos([]);
+    setPrecio("");
     setPendingFile(null);
     setOpen(true);
   }
@@ -73,6 +75,7 @@ export function UnidadesEditor({ initial }: { initial: Unidad[] }) {
     setTitulo(u.titulo);
     setDescripcion(u.descripcion);
     setFotos([...(u.fotos ?? [])]);
+    setPrecio(u.precio?.trim() ?? "");
     setPendingFile(null);
     setOpen(true);
   }
@@ -128,6 +131,7 @@ export function UnidadesEditor({ initial }: { initial: Unidad[] }) {
         await updateUnidad(editing.id, {
           titulo: titulo.trim(),
           descripcion,
+          precio: precio.trim() || null,
           fotos,
         });
         toast.success("Unidad actualizada.");
@@ -135,6 +139,7 @@ export function UnidadesEditor({ initial }: { initial: Unidad[] }) {
         await createUnidad({
           titulo: titulo.trim(),
           descripcion,
+          precio: precio.trim() || null,
           fotos,
         });
         toast.success("Unidad creada.");
@@ -347,6 +352,22 @@ export function UnidadesEditor({ initial }: { initial: Unidad[] }) {
                   </>
                 ) : null}
               </div>
+            </div>
+            <div>
+              <div className="mb-1 flex flex-wrap items-center gap-2">
+                <Label htmlFor="u-precio">Precio / Tarifa</Label>
+                <Badge variant="secondary" className="font-normal text-nautico-700">
+                  (opcional)
+                </Badge>
+              </div>
+              <Input
+                id="u-precio"
+                type="text"
+                value={precio}
+                onChange={(e) => setPrecio(e.target.value)}
+                placeholder="Ej: $50.000 por noche"
+                className="mt-1"
+              />
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">

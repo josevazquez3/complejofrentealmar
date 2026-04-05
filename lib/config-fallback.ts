@@ -13,6 +13,7 @@ export const CONFIG_FALLBACK: Configuracion = {
   email_contacto: "info@complejofrentealmar.com.ar",
   facebook_url: "https://facebook.com",
   instagram_url: "https://instagram.com",
+  youtube_video_id: null,
   updated_at: new Date().toISOString(),
 };
 
@@ -30,5 +31,6 @@ export function mergeConfigWithFallback(row: Configuracion | null): Configuracio
     email_contacto: row.email_contacto ?? CONFIG_FALLBACK.email_contacto,
     facebook_url: row.facebook_url ?? CONFIG_FALLBACK.facebook_url,
     instagram_url: row.instagram_url ?? CONFIG_FALLBACK.instagram_url,
+    youtube_video_id: row.youtube_video_id ?? CONFIG_FALLBACK.youtube_video_id,
   };
 }

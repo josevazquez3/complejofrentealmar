@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Users } from "lucide-react";
+import { Tag, Users } from "lucide-react";
 import { FadeInSection } from "@/components/home/FadeInSection";
 import { BLUR_DATA_URL } from "@/lib/blur-placeholder";
 import type { Unidad } from "@/types/configuracion";
@@ -67,6 +67,12 @@ export function MarketingUnidadesGrid({ unidades }: { unidades: Unidad[] }) {
                       Unidad del complejo
                     </p>
                     <p className="mt-2 line-clamp-3 text-sm text-fm-muted">{snippet(u.descripcion) || "Consultá disponibilidad."}</p>
+                    {u.precio?.trim() ? (
+                      <p className="mt-3 flex items-center gap-2 text-sm font-bold text-emerald-700">
+                        <Tag className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
+                        <span>{u.precio.trim()}</span>
+                      </p>
+                    ) : null}
                     <span className="mt-5 inline-flex w-full items-center justify-center bg-fm-footer px-4 py-2.5 text-sm font-medium text-white transition-all group-hover:bg-fm-red">
                       Reservar
                     </span>

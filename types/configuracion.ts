@@ -18,6 +18,8 @@ export interface Unidad {
   id: string;
   titulo: string;
   descripcion: string;
+  /** Tarifa de marketing (texto libre), opcional. */
+  precio: string | null;
   fotos: string[];
   habilitada: boolean;
   orden: number;

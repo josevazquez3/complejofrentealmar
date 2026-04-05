@@ -196,6 +196,7 @@ export async function getUnidades(): Promise<Unidad[]> {
       id: u.id,
       titulo: u.titulo,
       descripcion: u.descripcion,
+      precio: u.precio ?? null,
       fotos: u.fotos ?? [],
       habilitada: u.habilitada,
       orden: u.orden,
@@ -210,11 +211,17 @@ export async function getUnidades(): Promise<Unidad[]> {
 export async function createUnidad(data: {
   titulo: string;
   descripcion: string;
+  precio?: string | null;
   fotos: string[];
 }): Promise<Unidad> {
   await requireUser();
   const titulo = data.titulo.trim();
   if (!titulo) throw new Error("El título es obligatorio");
+
+  const precioLimpio =
+    data.precio === undefined || data.precio === null
+      ? null
+      : String(data.precio).trim() || null;
 
   const agg = await prisma.unidad.aggregate({ _max: { orden: true } });
   const orden = (agg._max.orden ?? -1) + 1;
@@ -223,6 +230,7 @@ export async function createUnidad(data: {
     data: {
       titulo,
       descripcion: data.descripcion.trim(),
+      precio: precioLimpio,
       fotos: data.fotos.filter(Boolean),
       habilitada: true,
       orden,
@@ -234,6 +242,7 @@ export async function createUnidad(data: {
     id: row.id,
     titulo: row.titulo,
     descripcion: row.descripcion,
+    precio: row.precio ?? null,
     fotos: row.fotos ?? [],
     habilitada: row.habilitada,
     orden: row.orden,
@@ -248,6 +257,9 @@ export async function updateUnidad(id: string, data: Partial<Unidad>): Promise<v
   if (data.titulo !== undefined) patch.titulo = data.titulo.trim();
   if (data.descripcion !== undefined) patch.descripcion = data.descripcion;
   if (data.fotos !== undefined) patch.fotos = data.fotos;
+  if (data.precio !== undefined) {
+    patch.precio = data.precio === null ? null : String(data.precio).trim() || null;
+  }
   if (data.orden !== undefined) patch.orden = data.orden;
   if (data.habilitada !== undefined) patch.habilitada = data.habilitada;
 

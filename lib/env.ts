@@ -2,9 +2,7 @@
  * Variables de entorno. Las `NEXT_PUBLIC_*` se inyectan en el cliente en build.
  */
 export const env = {
-  googleMapsKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
   complexName: process.env.NEXT_PUBLIC_COMPLEX_NAME ?? "Complejo Frente al Mar",
-  youtubeVideoId: process.env.NEXT_PUBLIC_YOUTUBE_VIDEO_ID ?? "",
 } as const;
 
 export function hasDatabaseUrl(): boolean {
