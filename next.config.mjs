@@ -13,9 +13,15 @@ const nextConfig = {
   },
   images: {
     remotePatterns: [
+      /* Next 14: un solo `*` por segmento; `**` en hostname suele no matchear y provoca 400 en /_next/image */
       {
         protocol: "https",
-        hostname: "**.public.blob.vercel-storage.com",
+        hostname: "*.public.blob.vercel-storage.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.blob.vercel-storage.com",
         pathname: "/**",
       },
       {
