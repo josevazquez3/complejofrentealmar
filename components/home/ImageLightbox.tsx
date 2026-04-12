@@ -5,7 +5,7 @@ import { useCallback, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, esUrlImagenAbsoluta } from "@/lib/utils";
 import { BLUR_DATA_URL } from "@/lib/blur-placeholder";
 
 type Props = {
@@ -105,6 +105,7 @@ export function ImageLightbox({ images, open, index, onClose, onIndexChange }: P
                     placeholder="blur"
                     blurDataURL={BLUR_DATA_URL}
                     priority
+                    unoptimized={esUrlImagenAbsoluta(safe[current])}
                   />
                 </motion.div>
               </AnimatePresence>
@@ -152,7 +153,14 @@ export function ImageLightbox({ images, open, index, onClose, onIndexChange }: P
                   i === current ? "border-fm-red opacity-100" : "border-transparent opacity-60 hover:opacity-100"
                 )}
               >
-                <Image src={src} alt="" fill className="object-cover" sizes="96px" />
+                <Image
+                  src={src}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  sizes="96px"
+                  unoptimized={esUrlImagenAbsoluta(src)}
+                />
               </button>
             ))}
           </div>

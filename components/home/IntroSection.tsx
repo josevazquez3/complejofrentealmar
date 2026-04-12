@@ -5,11 +5,12 @@ import Link from "next/link";
 import { FadeInSection } from "@/components/home/FadeInSection";
 import { BLUR_DATA_URL } from "@/lib/blur-placeholder";
 
+/** Archivos bajo /public/images no existen en el repo; Unsplash ya está permitido en next.config. */
 const FALLBACK_FOTOS = [
-  "/images/interior1.jpg",
-  "/images/interior2.jpg",
-  "/images/interior3.jpg",
-  "/images/interior4.jpg",
+  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+  "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=800&q=80",
+  "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=800&q=80",
+  "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=800&q=80",
 ];
 
 const FALLBACK_TITULO = "INICIO - COMPLEJO FRENTE AL MAR AZUL.";
@@ -43,7 +44,7 @@ export function IntroSection({
                 placeholder="blur"
                 blurDataURL={BLUR_DATA_URL}
                 priority={i < 2}
-                unoptimized={src.startsWith("http")}
+                unoptimized={src.startsWith("http://") || src.startsWith("https://")}
               />
             </div>
           ))}

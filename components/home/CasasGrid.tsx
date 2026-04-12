@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Users } from "lucide-react";
 import { FadeInSection } from "@/components/home/FadeInSection";
 import { BLUR_DATA_URL } from "@/lib/blur-placeholder";
+import { esUrlImagenAbsoluta } from "@/lib/utils";
 import type { Casa } from "@/types";
 
 export function CasasGrid({
@@ -57,6 +58,7 @@ export function CasasGrid({
                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                           placeholder="blur"
                           blurDataURL={BLUR_DATA_URL}
+                          unoptimized={esUrlImagenAbsoluta(img)}
                         />
                       ) : (
                         <div className="flex h-full items-center justify-center bg-gray-200 text-fm-muted">

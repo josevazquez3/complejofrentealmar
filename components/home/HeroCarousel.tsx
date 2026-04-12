@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, esUrlImagenAbsoluta } from "@/lib/utils";
 import { BLUR_DATA_URL } from "@/lib/blur-placeholder";
 
 /** Fallback cuando no hay fotos en BD: URLs remotas válidas (evita .jpg locales rotos o HTML disfrazado de imagen). */
@@ -55,6 +55,7 @@ export function HeroCarousel({ imageUrls }: { imageUrls: string[] }) {
             sizes="100vw"
             placeholder="blur"
             blurDataURL={BLUR_DATA_URL}
+            unoptimized={esUrlImagenAbsoluta(slides[index])}
           />
         </motion.div>
       </AnimatePresence>
