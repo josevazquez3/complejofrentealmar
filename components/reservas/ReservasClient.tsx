@@ -49,7 +49,7 @@ function usarNextImageRemoto(src: string): boolean {
   }
 }
 
-/** Local y dominios permitidos en `next.config` → `next/image`; el resto `<img>` para no romper por host desconocido. */
+/** Rutas locales y hosts en `remotePatterns` usan el optimizador; el resto `unoptimized` (cualquier HTTPS sin listar). */
 function CasaCardImage({ src }: { src: string }) {
   if (src.startsWith("/")) {
     return (
@@ -77,7 +77,18 @@ function CasaCardImage({ src }: { src: string }) {
       />
     );
   }
-  return <img src={src} alt="" className="absolute inset-0 h-full w-full object-cover" />;
+  return (
+    <Image
+      src={src}
+      alt=""
+      fill
+      className="object-cover"
+      sizes="(max-width: 768px) 100vw, 33vw"
+      placeholder="blur"
+      blurDataURL={BLUR_DATA_URL}
+      unoptimized
+    />
+  );
 }
 
 export function ReservasClient({
