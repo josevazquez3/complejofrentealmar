@@ -119,6 +119,8 @@ export interface InventarioCategoria {
   created_at: string;
 }
 
+export type InventarioCategoriaConConteo = InventarioCategoria & { items_count: number };
+
 export interface InventarioItem {
   id: string;
   casa_id: string;

@@ -12,28 +12,44 @@ export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 20;
 
+type RawSearchParams = { [key: string]: string | string[] | undefined };
+
 function parseVista(v: string | undefined): VistaInventario {
-  if (v === "unidad" || v === "stockbajo") return v;
+  const t = v?.trim().toLowerCase();
+  if (t === "unidad" || t === "stockbajo") return t;
   return "lista";
+}
+
+function firstParam(v: string | string[] | undefined): string | undefined {
+  if (typeof v === "string") return v;
+  if (Array.isArray(v) && v[0] != null && v[0] !== "") return v[0];
+  return undefined;
+}
+
+async function resolveSearchParams(
+  searchParams: RawSearchParams | Promise<RawSearchParams>
+): Promise<RawSearchParams> {
+  return searchParams instanceof Promise ? await searchParams : searchParams;
 }
 
 export default async function AdminInventarioPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: RawSearchParams | Promise<RawSearchParams>;
 }) {
-  const vista = parseVista(typeof searchParams.vista === "string" ? searchParams.vista : undefined);
-  const page = Math.max(1, parseInt(String(searchParams.page ?? "1"), 10) || 1);
-  const casaId = typeof searchParams.casa === "string" ? searchParams.casa : undefined;
-  const categoriaId = typeof searchParams.categoria === "string" ? searchParams.categoria : undefined;
-  const estadoRaw = typeof searchParams.estado === "string" ? searchParams.estado : "todos";
+  const sp = await resolveSearchParams(searchParams);
+  const vista = parseVista(firstParam(sp.vista));
+  const page = Math.max(1, parseInt(String(firstParam(sp.page) ?? "1"), 10) || 1);
+  const casaId = firstParam(sp.casa);
+  const categoriaId = firstParam(sp.categoria);
+  const estadoRaw = firstParam(sp.estado) ?? "todos";
   const estado: EstadoItem | undefined =
     estadoRaw === "todos"
       ? undefined
       : (["bueno", "regular", "malo", "dado_de_baja"].includes(estadoRaw)
           ? (estadoRaw as EstadoItem)
           : undefined);
-  const q = typeof searchParams.q === "string" ? searchParams.q : "";
+  const q = firstParam(sp.q) ?? "";
 
   const [stats, casas, categorias] = await Promise.all([
     getInventarioStats(),

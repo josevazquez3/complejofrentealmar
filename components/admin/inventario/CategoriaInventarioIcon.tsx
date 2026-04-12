@@ -12,8 +12,9 @@ import {
   Umbrella,
   UtensilsCrossed,
 } from "lucide-react";
+import type { InventarioCategoriaIconKey } from "@/lib/inventario-categoria-icons";
 
-const MAP: Record<string, LucideIcon> = {
+const MAP = {
   Sofa,
   Tv,
   UtensilsCrossed,
@@ -23,7 +24,7 @@ const MAP: Record<string, LucideIcon> = {
   Plug,
   Umbrella,
   Package,
-};
+} satisfies Record<InventarioCategoriaIconKey, LucideIcon>;
 
 export function CategoriaInventarioIcon({
   icono,
@@ -32,6 +33,7 @@ export function CategoriaInventarioIcon({
   icono?: string | null;
   className?: string;
 }) {
-  const Icon = (icono && MAP[icono]) ? MAP[icono] : Package;
+  const Icon =
+    icono && icono in MAP ? MAP[icono as InventarioCategoriaIconKey] : Package;
   return <Icon className={className ?? "h-4 w-4 shrink-0"} />;
 }

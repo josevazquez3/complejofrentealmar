@@ -7,10 +7,6 @@ import { getNextAuthSecret } from "@/lib/auth-secret";
  */
 export async function middleware(request: NextRequest) {
   const secret = getNextAuthSecret();
-  if (!secret) {
-    return NextResponse.next();
-  }
-
   const token = await getToken({ req: request, secret });
   const path = request.nextUrl.pathname;
   const isLogin = path === "/admin/login";

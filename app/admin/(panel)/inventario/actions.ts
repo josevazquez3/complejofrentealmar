@@ -1,16 +1,35 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import {
+  createInventarioCategoria,
   createInventarioItem,
+  deleteInventarioCategoria,
   deleteInventarioItem,
   getAllInventarioItemsForExport,
   getInventarioItemById,
   registrarMovimiento,
+  updateInventarioCategoria,
   updateInventarioItem,
   type InventarioItemInsert,
 } from "@/lib/queries";
+import { getServerUser } from "@/lib/auth";
+import { normalizeInventarioCategoriaIcono } from "@/lib/inventario-categoria-icons";
 import type { InventarioItem, TipoMovimiento } from "@/types";
+
+async function requireInventarioSession() {
+  const u = await getServerUser();
+  if (!u) throw new Error("No autorizado");
+  return u;
+}
+
+function prismaUniqueMessage(e: unknown): string | null {
+  if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+    return "Ya existe una categoría con ese nombre.";
+  }
+  return null;
+}
 
 export async function crearItem(data: InventarioItemInsert) {
   try {
@@ -107,5 +126,55 @@ export async function exportarInventarioItemsAccion(): Promise<
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Error desconocido";
     return { ok: false, error: msg, items: [] };
+  }
+}
+
+export async function crearCategoriaInventarioAccion(data: { nombre: string; icono?: string | null }) {
+  try {
+    await requireInventarioSession();
+    const icono = normalizeInventarioCategoriaIcono(data.icono ?? null);
+    await createInventarioCategoria({ nombre: data.nombre, icono });
+    revalidatePath("/admin/inventario");
+    revalidatePath("/admin/inventario/categorias");
+    return { ok: true as const };
+  } catch (e: unknown) {
+    const dup = prismaUniqueMessage(e);
+    if (dup) return { ok: false as const, error: dup };
+    const msg = e instanceof Error ? e.message : "Error desconocido";
+    return { ok: false as const, error: msg };
+  }
+}
+
+export async function editarCategoriaInventarioAccion(
+  id: string,
+  data: { nombre?: string; icono?: string | null }
+) {
+  try {
+    await requireInventarioSession();
+    const payload: { nombre?: string; icono?: string | null } = {};
+    if (data.nombre !== undefined) payload.nombre = data.nombre;
+    if (data.icono !== undefined) payload.icono = normalizeInventarioCategoriaIcono(data.icono);
+    await updateInventarioCategoria(id, payload);
+    revalidatePath("/admin/inventario");
+    revalidatePath("/admin/inventario/categorias");
+    return { ok: true as const };
+  } catch (e: unknown) {
+    const dup = prismaUniqueMessage(e);
+    if (dup) return { ok: false as const, error: dup };
+    const msg = e instanceof Error ? e.message : "Error desconocido";
+    return { ok: false as const, error: msg };
+  }
+}
+
+export async function eliminarCategoriaInventarioAccion(id: string) {
+  try {
+    await requireInventarioSession();
+    await deleteInventarioCategoria(id);
+    revalidatePath("/admin/inventario");
+    revalidatePath("/admin/inventario/categorias");
+    return { ok: true as const };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Error desconocido";
+    return { ok: false as const, error: msg };
   }
 }

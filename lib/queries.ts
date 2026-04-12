@@ -11,6 +11,7 @@ import type {
   EstadoReserva,
   FechaBloqueada,
   InventarioCategoria,
+  InventarioCategoriaConConteo,
   InventarioItem,
   InventarioItemConMovimientos,
   InventarioStats,
@@ -540,6 +541,84 @@ export async function getCategorias(): Promise<InventarioCategoria[]> {
   } catch {
     return [];
   }
+}
+
+export async function getCategoriasInventarioConConteo(): Promise<InventarioCategoriaConConteo[]> {
+  if (!hasDb()) return [];
+  try {
+    const rows = await prisma.inventarioCategoria.findMany({
+      orderBy: { nombre: "asc" },
+      include: { _count: { select: { items: true } } },
+    });
+    return rows.map((c) => ({
+      id: c.id,
+      nombre: c.nombre,
+      icono: c.icono,
+      created_at: c.createdAt.toISOString(),
+      items_count: c._count.items,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export async function createInventarioCategoria(data: {
+  nombre: string;
+  icono?: string | null;
+}): Promise<InventarioCategoria> {
+  const nombre = data.nombre.trim();
+  if (!nombre) throw new Error("El nombre es obligatorio.");
+  const row = await prisma.inventarioCategoria.create({
+    data: {
+      nombre,
+      icono: data.icono?.trim() || null,
+    },
+  });
+  return {
+    id: row.id,
+    nombre: row.nombre,
+    icono: row.icono,
+    created_at: row.createdAt.toISOString(),
+  };
+}
+
+export async function updateInventarioCategoria(
+  id: string,
+  data: { nombre?: string; icono?: string | null }
+): Promise<InventarioCategoria> {
+  const update: { nombre?: string; icono?: string | null } = {};
+  if (data.nombre !== undefined) {
+    const nombre = data.nombre.trim();
+    if (!nombre) throw new Error("El nombre es obligatorio.");
+    update.nombre = nombre;
+  }
+  if (data.icono !== undefined) {
+    update.icono = data.icono?.trim() || null;
+  }
+  if (Object.keys(update).length === 0) {
+    const cur = await prisma.inventarioCategoria.findUnique({ where: { id } });
+    if (!cur) throw new Error("Categoría no encontrada.");
+    return {
+      id: cur.id,
+      nombre: cur.nombre,
+      icono: cur.icono,
+      created_at: cur.createdAt.toISOString(),
+    };
+  }
+  const row = await prisma.inventarioCategoria.update({
+    where: { id },
+    data: update,
+  });
+  return {
+    id: row.id,
+    nombre: row.nombre,
+    icono: row.icono,
+    created_at: row.createdAt.toISOString(),
+  };
+}
+
+export async function deleteInventarioCategoria(id: string): Promise<void> {
+  await prisma.inventarioCategoria.delete({ where: { id } });
 }
 
 export async function getInventarioItems(params: {

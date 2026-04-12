@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -13,13 +13,18 @@ import {
   Home,
   Package,
   Pencil,
+  Tags,
   Trash2,
   Warehouse,
 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import type { Casa, EstadoItem, InventarioCategoria, InventarioItem, InventarioStats } from "@/types";
 import { formatFechaCorta } from "@/lib/format-fecha";
+import { generarTemplateInventario } from "@/lib/inventario/generarTemplateInventario";
+import { useCargaMasiva } from "@/hooks/inventario/useCargaMasiva";
+import { ModalResultadoCarga } from "@/components/inventario/ModalResultadoCarga";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { darDeBajaItem, exportarInventarioItemsAccion } from "@/app/admin/(panel)/inventario/actions";
 import { CategoriaInventarioIcon } from "./CategoriaInventarioIcon";
 import { HistorialDrawer } from "./HistorialDrawer";
@@ -134,6 +139,9 @@ export function InventarioClient({
   const [confirmBaja, setConfirmBaja] = useState<InventarioItem | null>(null);
   const [expandedCasas, setExpandedCasas] = useState<Set<string>>(() => new Set());
   const [exporting, setExporting] = useState(false);
+  const inputCargaMasivaRef = useRef<HTMLInputElement>(null);
+  const { ejecutarCarga, loading: cargaMasivaLoading, resultado, error: cargaMasivaError, resetear } =
+    useCargaMasiva();
 
   useEffect(() => {
     setQInput(filters.q);
@@ -174,6 +182,13 @@ export function InventarioClient({
     } finally {
       setExporting(false);
     }
+  }
+
+  async function handleCargaMasiva(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await ejecutarCarga(file);
+    e.target.value = "";
   }
 
   async function doBaja() {
@@ -221,6 +236,44 @@ export function InventarioClient({
           >
             + Nuevo artículo
           </button>
+          <input
+            ref={inputCargaMasivaRef}
+            type="file"
+            accept=".xlsx,.xls"
+            className="hidden"
+            onChange={handleCargaMasiva}
+          />
+          <Button
+            variant="outline"
+            type="button"
+            disabled={cargaMasivaLoading}
+            onClick={() => inputCargaMasivaRef.current?.click()}
+          >
+            {cargaMasivaLoading ? "Importando..." : "📥 Carga masiva"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            onClick={() => {
+              const blob = generarTemplateInventario();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = "plantilla_inventario.xlsx";
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
+            📄 Plantilla
+          </Button>
+          <Link
+            href="/admin/inventario/categorias"
+            className="inline-flex items-center gap-2 rounded-lg border border-fm-border px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            <Tags className="h-4 w-4" />
+            Categorías
+          </Link>
           <button
             type="button"
             disabled={exporting}
@@ -685,6 +738,13 @@ export function InventarioClient({
       />
 
       <ConfirmBajaModal item={confirmBaja} onClose={() => setConfirmBaja(null)} onConfirm={doBaja} />
+
+      <ModalResultadoCarga
+        open={Boolean(resultado || cargaMasivaError)}
+        onClose={resetear}
+        resultado={resultado}
+        error={cargaMasivaError}
+      />
     </div>
   );
 }

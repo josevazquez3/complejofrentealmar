@@ -141,25 +141,33 @@ export function NuevaReservaModal({
   return (
     <AnimatePresence>
       {open ? (
-        <>
+        <motion.div
+          key="nueva-reserva"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 overflow-y-auto"
+        >
           <motion.button
             type="button"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/60"
+            className="fixed inset-0 bg-black/60"
             onClick={onClose}
             aria-label="Cerrar"
           />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.18 }}
-            className="fixed left-1/2 top-1/2 z-50 w-[min(96vw,32rem)] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white shadow-xl"
-            role="dialog"
-            aria-modal
-          >
+          <div className="relative flex min-h-[100dvh] items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.18 }}
+              className="relative z-10 w-full max-w-[min(96vw,32rem)] max-h-[min(92dvh,48rem)] overflow-y-auto rounded-2xl bg-white shadow-xl"
+              role="dialog"
+              aria-modal
+              onClick={(e) => e.stopPropagation()}
+            >
             <div className="flex items-center justify-between border-b border-fm-border p-5">
               <p className="font-semibold text-gray-800">Nueva Reserva</p>
               <button
@@ -310,8 +318,9 @@ export function NuevaReservaModal({
                 {loading ? "Enviando..." : "Crear reserva confirmada"}
               </button>
             </form>
-          </motion.div>
-        </>
+            </motion.div>
+          </div>
+        </motion.div>
       ) : null}
     </AnimatePresence>
   );

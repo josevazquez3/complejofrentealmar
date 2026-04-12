@@ -143,25 +143,33 @@ export function MovimientoFormModal({
   return (
     <AnimatePresence>
       {open ? (
-        <>
+        <motion.div
+          key="movimiento-form"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 overflow-y-auto"
+        >
           <motion.button
             type="button"
             aria-label="Cerrar"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/60"
+            className="fixed inset-0 bg-black/60"
             onClick={onClose}
           />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.18 }}
-            className="fixed inset-x-0 bottom-0 z-50 max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 shadow-2xl sm:inset-auto sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:max-h-[min(90vh,42rem)] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl"
-            role="dialog"
-            aria-modal
-          >
+          <div className="relative flex min-h-[100dvh] items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.18 }}
+              className="relative z-10 w-full max-w-lg max-h-[min(90dvh,42rem)] overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl"
+              role="dialog"
+              aria-modal
+              onClick={(e) => e.stopPropagation()}
+            >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-semibold text-gray-800">{titulo}</h2>
               <span
@@ -338,8 +346,9 @@ export function MovimientoFormModal({
                 </button>
               </div>
             </form>
-          </motion.div>
-        </>
+            </motion.div>
+          </div>
+        </motion.div>
       ) : null}
     </AnimatePresence>
   );
