@@ -15,6 +15,7 @@ export const CONFIG_FALLBACK: Configuracion = {
   facebook_url: "https://facebook.com",
   instagram_url: "https://instagram.com",
   youtube_video_id: null,
+  logo_url: null,
   updated_at: new Date().toISOString(),
 };
 
@@ -34,5 +35,6 @@ export function mergeConfigWithFallback(row: Configuracion | null): Configuracio
     facebook_url: row.facebook_url ?? CONFIG_FALLBACK.facebook_url,
     instagram_url: row.instagram_url ?? CONFIG_FALLBACK.instagram_url,
     youtube_video_id: row.youtube_video_id ?? CONFIG_FALLBACK.youtube_video_id,
+    logo_url: row.logo_url ?? CONFIG_FALLBACK.logo_url,
   };
 }

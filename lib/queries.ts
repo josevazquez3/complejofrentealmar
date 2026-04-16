@@ -72,6 +72,7 @@ function mapConfig(row: {
   facebookUrl: string | null;
   instagramUrl: string | null;
   youtubeVideoId: string | null;
+  logoUrl: string | null;
   updatedAt: Date;
 }): Configuracion {
   return {
@@ -87,6 +88,7 @@ function mapConfig(row: {
     facebook_url: row.facebookUrl,
     instagram_url: row.instagramUrl,
     youtube_video_id: row.youtubeVideoId,
+    logo_url: row.logoUrl,
     updated_at: row.updatedAt.toISOString(),
   };
 }

@@ -244,6 +244,8 @@ export interface Configuracion {
   instagram_url: string | null;
   /** ID del video institucional (YouTube), editable en Editar sitio → Video. */
   youtube_video_id: string | null;
+  /** URL del logo en el header (opcional). */
+  logo_url: string | null;
   updated_at: string;
 }
 

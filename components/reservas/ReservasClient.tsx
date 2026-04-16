@@ -12,7 +12,7 @@ import { rangoSolapaBloqueados } from "@/lib/reservas-disponibilidad";
 import { BLUR_DATA_URL } from "@/lib/blur-placeholder";
 import { useToast } from "@/hooks/useToast";
 import type { Casa, FechaBloqueada } from "@/types";
-import { cn } from "@/lib/utils";
+import { cn, evitarOptimizadorNextImage } from "@/lib/utils";
 
 function nochesEntre(desdeYmd: string, hastaYmd: string): number {
   const d1 = parseYmdLocal(desdeYmd);
@@ -37,46 +37,7 @@ function descripcionUnaLinea(casa: Casa): string {
   return line.length > 90 ? `${line.slice(0, 90)}…` : line;
 }
 
-function usarNextImageRemoto(src: string): boolean {
-  try {
-    const u = new URL(src);
-    if (u.protocol !== "https:") return false;
-    if (u.hostname === "images.unsplash.com") return true;
-    if (u.hostname.endsWith(".public.blob.vercel-storage.com")) return true;
-    return false;
-  } catch {
-    return false;
-  }
-}
-
-/** Rutas locales y hosts en `remotePatterns` usan el optimizador; el resto `unoptimized` (cualquier HTTPS sin listar). */
 function CasaCardImage({ src }: { src: string }) {
-  if (src.startsWith("/")) {
-    return (
-      <Image
-        src={src}
-        alt=""
-        fill
-        className="object-cover"
-        sizes="(max-width: 768px) 100vw, 33vw"
-        placeholder="blur"
-        blurDataURL={BLUR_DATA_URL}
-      />
-    );
-  }
-  if (usarNextImageRemoto(src)) {
-    return (
-      <Image
-        src={src}
-        alt=""
-        fill
-        className="object-cover"
-        sizes="(max-width: 768px) 100vw, 33vw"
-        placeholder="blur"
-        blurDataURL={BLUR_DATA_URL}
-      />
-    );
-  }
   return (
     <Image
       src={src}
@@ -86,7 +47,7 @@ function CasaCardImage({ src }: { src: string }) {
       sizes="(max-width: 768px) 100vw, 33vw"
       placeholder="blur"
       blurDataURL={BLUR_DATA_URL}
-      unoptimized
+      unoptimized={evitarOptimizadorNextImage(src)}
     />
   );
 }

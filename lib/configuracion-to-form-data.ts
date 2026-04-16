@@ -13,5 +13,6 @@ export function configuracionToGuardarFormData(cfg: Configuracion, whatsappMensa
   fd.set("email_contacto", cfg.email_contacto ?? "");
   fd.set("facebook_url", cfg.facebook_url ?? "");
   fd.set("instagram_url", cfg.instagram_url ?? "");
+  fd.set("logo_url", cfg.logo_url ?? "");
   return fd;
 }

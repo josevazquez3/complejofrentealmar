@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { Tag, Users } from "lucide-react";
 import { FadeInSection } from "@/components/home/FadeInSection";
 import { BLUR_DATA_URL } from "@/lib/blur-placeholder";
-import { esUrlImagenAbsoluta } from "@/lib/utils";
+import { evitarOptimizadorNextImage } from "@/lib/utils";
 import type { Unidad } from "@/types/configuracion";
 
 function snippet(text: string, max = 140) {
@@ -53,7 +53,7 @@ export function MarketingUnidadesGrid({ unidades }: { unidades: Unidad[] }) {
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         placeholder="blur"
                         blurDataURL={BLUR_DATA_URL}
-                        unoptimized={esUrlImagenAbsoluta(img)}
+                        unoptimized={evitarOptimizadorNextImage(img)}
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center bg-gray-200 text-fm-muted">

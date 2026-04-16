@@ -88,6 +88,20 @@ export function ConfiguracionForm({
             />
           </div>
           <div className="space-y-2">
+            <Label htmlFor="logo_url">URL del logo (header)</Label>
+            <Input
+              id="logo_url"
+              name="logo_url"
+              type="url"
+              defaultValue={initial.logo_url ?? ""}
+              placeholder="https://…"
+              className="rounded-xl"
+            />
+            <p className="text-xs text-nautico-600/90">
+              Opcional. Si está vacío se muestra la marca &quot;FM&quot;. Podés pegar la URL pública de una imagen (p. ej. desde el almacenamiento del sitio).
+            </p>
+          </div>
+          <div className="space-y-2">
             <Label htmlFor="tagline">Tagline / slogan</Label>
             <Input id="tagline" name="tagline" defaultValue={initial.tagline ?? ""} className="rounded-xl" />
           </div>

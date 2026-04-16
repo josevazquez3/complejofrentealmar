@@ -18,6 +18,7 @@ function configuracionFromForm(formData: FormData) {
     emailContacto: String(formData.get("email_contacto") ?? "").trim() || null,
     facebookUrl: String(formData.get("facebook_url") ?? "").trim() || null,
     instagramUrl: String(formData.get("instagram_url") ?? "").trim() || null,
+    logoUrl: String(formData.get("logo_url") ?? "").trim() || null,
   };
 }
 

@@ -41,6 +41,8 @@ model Configuracion {
   facebookUrl        String?  @map("facebook_url")
   instagramUrl       String?  @map("instagram_url")
   youtubeVideoId     String?  @map("youtube_video_id")
+  /// URL del logo del sitio (header). Vacío = marca texto “FM”.
+  logoUrl            String?  @map("logo_url")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   @@map("configuracion")

@@ -12,7 +12,7 @@ import { FadeInSection } from "@/components/home/FadeInSection";
 import { ImageLightbox } from "@/components/home/ImageLightbox";
 import { OtrasUnidades } from "@/components/home/OtrasUnidades";
 import { buttonVariants } from "@/components/ui/button";
-import { cn, esUrlImagenAbsoluta } from "@/lib/utils";
+import { cn, evitarOptimizadorNextImage } from "@/lib/utils";
 import { BLUR_DATA_URL } from "@/lib/blur-placeholder";
 import { useConfiguracion } from "@/hooks/useConfiguracion";
 import type { Casa, CasaListItem } from "@/types";
@@ -117,7 +117,7 @@ export function CasaDetail({
               priority
               placeholder="blur"
               blurDataURL={BLUR_DATA_URL}
-              unoptimized={esUrlImagenAbsoluta(fotos[0])}
+              unoptimized={evitarOptimizadorNextImage(fotos[0])}
             />
           </button>
         ) : (
@@ -138,7 +138,7 @@ export function CasaDetail({
                   priority
                   placeholder="blur"
                   blurDataURL={BLUR_DATA_URL}
-                  unoptimized={esUrlImagenAbsoluta(fotos[0])}
+                  unoptimized={evitarOptimizadorNextImage(fotos[0])}
                 />
               </button>
               <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
@@ -160,7 +160,7 @@ export function CasaDetail({
                         sizes="128px"
                         placeholder="blur"
                         blurDataURL={BLUR_DATA_URL}
-                        unoptimized={esUrlImagenAbsoluta(src)}
+                        unoptimized={evitarOptimizadorNextImage(src)}
                       />
                       {showOverlay ? (
                         <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-sm font-bold text-white">
@@ -190,7 +190,7 @@ export function CasaDetail({
                     priority
                     placeholder="blur"
                     blurDataURL={BLUR_DATA_URL}
-                    unoptimized={esUrlImagenAbsoluta(fotos[0])}
+                    unoptimized={evitarOptimizadorNextImage(fotos[0])}
                   />
                 </button>
                 <button
@@ -206,7 +206,7 @@ export function CasaDetail({
                     sizes="33vw"
                     placeholder="blur"
                     blurDataURL={BLUR_DATA_URL}
-                    unoptimized={esUrlImagenAbsoluta(fotos[1])}
+                    unoptimized={evitarOptimizadorNextImage(fotos[1])}
                   />
                 </button>
               </div>
@@ -226,7 +226,7 @@ export function CasaDetail({
                     priority
                     placeholder="blur"
                     blurDataURL={BLUR_DATA_URL}
-                    unoptimized={esUrlImagenAbsoluta(fotos[0])}
+                    unoptimized={evitarOptimizadorNextImage(fotos[0])}
                   />
                 </button>
                 <div className="grid h-96 grid-rows-2 gap-2">
@@ -243,7 +243,7 @@ export function CasaDetail({
                       sizes="33vw"
                       placeholder="blur"
                       blurDataURL={BLUR_DATA_URL}
-                      unoptimized={esUrlImagenAbsoluta(fotos[1])}
+                      unoptimized={evitarOptimizadorNextImage(fotos[1])}
                     />
                   </button>
                   <button
@@ -259,7 +259,7 @@ export function CasaDetail({
                       sizes="33vw"
                       placeholder="blur"
                       blurDataURL={BLUR_DATA_URL}
-                      unoptimized={esUrlImagenAbsoluta(fotos[2])}
+                      unoptimized={evitarOptimizadorNextImage(fotos[2])}
                     />
                     {fotos.length > 3 ? (
                       <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-lg font-bold text-white">

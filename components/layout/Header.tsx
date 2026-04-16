@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -8,7 +9,7 @@ import { Menu } from "lucide-react";
 import { FaFacebookF, FaInstagram } from "react-icons/fa";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { cn } from "@/lib/utils";
+import { cn, evitarOptimizadorNextImage } from "@/lib/utils";
 import { useConfiguracion } from "@/hooks/useConfiguracion";
 
 const nav = [
@@ -70,6 +71,7 @@ export function Header() {
 
   const fb = config.facebook_url?.trim() || "https://facebook.com";
   const ig = config.instagram_url?.trim() || "https://instagram.com";
+  const logoUrl = config.logo_url?.trim() ?? "";
 
   useEffect(() => {
     const sync = () => setHash(window.location.hash.replace(/^#/, ""));
@@ -87,13 +89,29 @@ export function Header() {
     >
       <div className="relative flex items-center justify-between px-8 py-4">
         <Link href="/" className="group flex items-center gap-3">
-          <span className="font-display text-3xl font-bold leading-none text-fm-red">FM</span>
-          <div className="flex flex-col">
-            <span className="text-xs font-medium uppercase tracking-widest text-fm-text">
-              FRENTE AL MAR
+          {logoUrl ? (
+            <span className="relative h-11 w-[140px] shrink-0 sm:w-[160px]">
+              <Image
+                src={logoUrl}
+                alt={config.complejo_nombre}
+                fill
+                className="object-contain object-left"
+                sizes="160px"
+                priority
+                unoptimized={evitarOptimizadorNextImage(logoUrl)}
+              />
             </span>
-          </div>
-          <WaveIcon className="h-4 w-10 text-fm-red/80 transition-colors group-hover:text-fm-red" />
+          ) : (
+            <>
+              <span className="font-display text-3xl font-bold leading-none text-fm-red">FM</span>
+              <div className="flex flex-col">
+                <span className="text-xs font-medium uppercase tracking-widest text-fm-text">
+                  FRENTE AL MAR
+                </span>
+              </div>
+              <WaveIcon className="h-4 w-10 text-fm-red/80 transition-colors group-hover:text-fm-red" />
+            </>
+          )}
         </Link>
 
         <nav className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-10 lg:flex">

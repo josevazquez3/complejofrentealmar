@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { BLUR_DATA_URL } from "@/lib/blur-placeholder";
-import { esUrlImagenAbsoluta } from "@/lib/utils";
+import { evitarOptimizadorNextImage } from "@/lib/utils";
 import type { CasaListItem } from "@/types";
 
 function snippet(text: string | null | undefined, max = 120) {
@@ -44,7 +44,7 @@ export function OtrasUnidades({ casas }: { casas: CasaListItem[] }) {
                     sizes="(max-width: 640px) 100vw, 33vw"
                     placeholder="blur"
                     blurDataURL={BLUR_DATA_URL}
-                    unoptimized={esUrlImagenAbsoluta(img)}
+                    unoptimized={evitarOptimizadorNextImage(img)}
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center text-sm text-fm-muted">Sin foto</div>

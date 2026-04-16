@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { FadeInSection } from "@/components/home/FadeInSection";
 import { BLUR_DATA_URL } from "@/lib/blur-placeholder";
+import { evitarOptimizadorNextImage } from "@/lib/utils";
 
 /** Archivos bajo /public/images no existen en el repo; Unsplash ya está permitido en next.config. */
 const FALLBACK_FOTOS = [
@@ -44,7 +45,7 @@ export function IntroSection({
                 placeholder="blur"
                 blurDataURL={BLUR_DATA_URL}
                 priority={i < 2}
-                unoptimized={src.startsWith("http://") || src.startsWith("https://")}
+                unoptimized={evitarOptimizadorNextImage(src)}
               />
             </div>
           ))}
