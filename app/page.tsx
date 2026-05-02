@@ -6,9 +6,11 @@ import { IntroSection } from "@/components/home/IntroSection";
 import { MarketingUnidadesGrid } from "@/components/home/MarketingUnidadesGrid";
 import { MapSection } from "@/components/home/MapSection";
 import { ServiciosSection } from "@/components/home/ServiciosSection";
+import { PromoGifSection } from "@/components/home/PromoGifSection";
 import { VideoSection } from "@/components/home/VideoSection";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { mergeConfigWithFallback } from "@/lib/config-fallback";
+import { env } from "@/lib/env";
 import {
   type CasasLoadResult,
   getCasasActivasForHome,
@@ -66,6 +68,7 @@ export default async function HomePage() {
         descripcion={inicio?.descripcion}
         fotos={inicio?.fotos}
       />
+      {env.promoGifUrl ? <PromoGifSection src={env.promoGifUrl} /> : null}
       {marketingUnidades.length > 0 ? (
         <MarketingUnidadesGrid unidades={marketingUnidades} />
       ) : (

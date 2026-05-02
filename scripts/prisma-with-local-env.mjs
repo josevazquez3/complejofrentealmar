@@ -135,7 +135,41 @@ for (const [key, val] of Object.entries(merged)) {
   process.env[key] = val;
 }
 
+/** Neon/Vercel: migraciones / db push con pooler suelen dar timeout en pg_advisory_lock (P1002). */
+function usarConexionDirectaParaMigrate(prismaArgs) {
+  const esMigrate =
+    prismaArgs.length > 0 &&
+    (prismaArgs[0] === "migrate" ||
+      (prismaArgs[0] === "db" && prismaArgs[1] === "push"));
+  if (!esMigrate) return;
+
+  const unpooled =
+    cleanValue(process.env.DATABASE_URL_UNPOOLED) ||
+    cleanValue(process.env.DIRECT_URL) ||
+    cleanValue(process.env.POSTGRES_URL_NON_POOLING);
+
+  if (usablePostgresUrl(unpooled) && !isPlaceholder(unpooled)) {
+    process.env.DATABASE_URL = unpooled;
+    console.error(
+      "[prisma] Migraciones: usando DATABASE_URL_UNPOOLED / DIRECT_URL / POSTGRES_URL_NON_POOLING (conexión directa)."
+    );
+    return;
+  }
+
+  const actual = cleanValue(process.env.DATABASE_URL) ?? "";
+  if (actual.includes("-pooler.")) {
+    const derivada = actual.replace("-pooler.", ".");
+    process.env.DATABASE_URL = derivada;
+    console.error(
+      "[prisma] Migraciones: usando host sin «-pooler» (derivado de DATABASE_URL). Si falla, pegá en .env.local la URI «Direct» de Neon."
+    );
+  }
+}
+
+const prismaArgsEarly = process.argv.slice(2);
+
 resolveDatabaseUrl();
+usarConexionDirectaParaMigrate(prismaArgsEarly);
 
 function diagnose() {
   const v = cleanValue(process.env.DATABASE_URL);
@@ -161,7 +195,7 @@ function failUrl() {
 
 if (!usablePooledCandidate(process.env.DATABASE_URL)) failUrl();
 
-const prismaArgs = process.argv.slice(2);
+const prismaArgs = prismaArgsEarly;
 if (prismaArgs.length === 0) {
   console.error("Uso: node scripts/prisma-with-local-env.mjs <args de prisma…>");
   console.error("Ejemplo: node scripts/prisma-with-local-env.mjs migrate deploy");

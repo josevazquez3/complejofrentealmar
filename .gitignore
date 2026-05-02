@@ -40,3 +40,7 @@ next-env.d.ts
 # Subidas locales cuando no hay BLOB_READ_WRITE_TOKEN (solo desarrollo)
 /public/uploads/*
 !/public/uploads/.gitkeep
+
+# Python (gif_maker u otros scripts)
+__pycache__/
+*.py[cod]

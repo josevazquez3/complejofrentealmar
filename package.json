@@ -13,6 +13,7 @@
     "db:generate": "prisma generate",
     "create-admin": "node scripts/create-admin.mjs",
     "db:migrate": "node scripts/prisma-with-local-env.mjs migrate deploy",
+    "db:migrate:no-lock": "node scripts/prisma-migrate-no-advisory-lock.mjs",
     "db:migrate:dev": "node scripts/prisma-with-local-env.mjs migrate dev",
     "db:push": "node scripts/prisma-with-local-env.mjs db push"
   },
