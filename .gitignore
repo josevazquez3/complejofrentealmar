@@ -44,3 +44,5 @@ next-env.d.ts
 # Python (gif_maker u otros scripts)
 __pycache__/
 *.py[cod]
+.vercel
+.env*.local

@@ -8,6 +8,7 @@ function blobToken(): string | undefined {
 
 /** En desarrollo, sin token, las subidas van a `public/uploads/` (no usar en producción sin Blob). */
 function localDevUploadFallback(): boolean {
+  if (process.env.VERCEL === "1") return false;
   return process.env.NODE_ENV === "development" && !blobToken();
 }
 
@@ -61,7 +62,14 @@ export async function uploadToBlob(
     contentType: contentType || "application/octet-stream",
     token,
   });
-  return { url: blob.url };
+  // Siempre persistir en BD la URL pública completa que devuelve Vercel Blob (https://…storage.vercel…).
+  const publicUrl = blob.url;
+  if (!publicUrl?.startsWith("https://")) {
+    throw new Error(
+      "Respuesta de Blob sin URL https pública. Revisá BLOB_READ_WRITE_TOKEN y la cuenta de Vercel Blob."
+    );
+  }
+  return { url: publicUrl };
 }
 
 /** Elimina un blob por su URL pública, o el archivo en `public/uploads/` en desarrollo local. */

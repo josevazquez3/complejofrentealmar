@@ -75,8 +75,9 @@ export async function uploadImage(formData: FormData): Promise<{ url: string; pa
   const pathname = `${safeFolder}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
 
   const buf = Buffer.from(await file.arrayBuffer());
-  const { url } = await uploadToBlob(pathname, buf, file.type || "image/jpeg");
-  return { url, path: url };
+  const { url: publicUrl } = await uploadToBlob(pathname, buf, file.type || "image/jpeg");
+  // `path` se usa como storagePath en carrusel; debe ser la misma URL absoluta que `url` (Blob: https://…).
+  return { url: publicUrl, path: publicUrl };
 }
 
 export async function deleteImage(storagePathOrUrl: string): Promise<void> {
