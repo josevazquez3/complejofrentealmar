@@ -1,24 +1,7 @@
-import { NextResponse, type NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
-import { getNextAuthSecret } from "@/lib/auth-secret";
+import NextAuth from "next-auth";
+import { authConfig } from "@/auth.config";
 
-/**
- * Protege `/admin/*` excepto `/admin/login`. Compatible con Edge (sin Prisma).
- */
-export async function middleware(request: NextRequest) {
-  const secret = getNextAuthSecret();
-  const token = await getToken({ req: request, secret });
-  const path = request.nextUrl.pathname;
-  const isLogin = path === "/admin/login";
-
-  if (path.startsWith("/admin") && !isLogin && !token) {
-    return NextResponse.redirect(new URL("/admin/login", request.url));
-  }
-  if (isLogin && token) {
-    return NextResponse.redirect(new URL("/admin/dashboard", request.url));
-  }
-  return NextResponse.next();
-}
+export default NextAuth(authConfig).auth;
 
 export const config = {
   matcher: ["/admin/:path*"],

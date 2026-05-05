@@ -1,11 +1,12 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
+import { authConfig } from "@/auth.config";
 import { getNextAuthSecret } from "@/lib/auth-secret";
 import { prisma } from "@/lib/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  trustHost: true,
+  ...authConfig,
   secret: getNextAuthSecret(),
   providers: [
     Credentials({
@@ -34,10 +35,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 7 },
-  pages: {
-    signIn: "/admin/login",
-  },
   callbacks: {
+    ...authConfig.callbacks,
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;

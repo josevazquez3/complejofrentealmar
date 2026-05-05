@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -12,7 +11,6 @@ import { DEFAULT_COMPLEX_NAME } from "@/lib/constants";
 import { toast } from "sonner";
 
 export default function AdminLoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -31,8 +29,7 @@ export default function AdminLoginPage() {
         return;
       }
       toast.success("Bienvenido");
-      router.push("/admin/dashboard");
-      router.refresh();
+      window.location.href = "/admin/dashboard";
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       toast.error(`No se pudo conectar: ${detail}`);
