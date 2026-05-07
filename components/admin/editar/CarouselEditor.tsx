@@ -145,17 +145,37 @@ export function CarouselEditor({ initial }: { initial: Row[] }) {
     if (!toUpload || rows.length >= MAX) return;
     setBusy("upload");
     try {
-      const fd = new FormData();
-      fd.append("file", toUpload);
-      fd.append("folder", "carousel");
-      const { url, path } = await uploadImage(fd);
+      const isGif = toUpload.type === "image/gif";
+      let url: string;
+      let pathKey: string;
+
+      if (isGif) {
+        // GIFs: client-side upload directo a Vercel Blob (evita límite 4.5MB de server actions)
+        const { upload } = await import("@vercel/blob/client");
+        const pathname = `carousel/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.gif`;
+        const blob = await upload(pathname, toUpload, {
+          access: "public",
+          handleUploadUrl: "/api/blob-upload",
+        });
+        url = blob.url;
+        pathKey = blob.url;
+      } else {
+        // Imágenes normales: server action de siempre
+        const fd = new FormData();
+        fd.append("file", toUpload);
+        fd.append("folder", "carousel");
+        const result = await uploadImage(fd);
+        url = result.url;
+        pathKey = result.path;
+      }
+
       const nextOrden = rows.length ? Math.max(...rows.map((r) => r.orden)) + 1 : 0;
       setRows((prev) => [
         ...prev,
         {
-          id: `temp-${path}`,
+          id: `temp-${pathKey}`,
           url,
-          storage_path: path,
+          storage_path: pathKey,
           orden: nextOrden,
           created_at: new Date().toISOString(),
         },
