@@ -90,7 +90,7 @@ export function Header() {
       <div className="relative flex items-center justify-between px-8 py-4">
         <Link href="/" className="group flex items-center gap-3">
           {logoUrl ? (
-            <span className="relative h-11 w-[140px] shrink-0 sm:w-[160px]">
+            <span className="relative h-16 w-[180px] shrink-0 sm:w-[220px]">
               <Image
                 src={logoUrl}
                 alt={config.complejo_nombre}
