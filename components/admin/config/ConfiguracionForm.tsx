@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { motion } from "framer-motion";
-import { Settings } from "lucide-react";
+import { Loader2, Settings, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { Configuracion } from "@/types";
 import { guardarConfiguracion } from "@/app/admin/(panel)/configuracion/actions";
+import { uploadImage } from "@/app/actions/configuracion";
 import { WHATSAPP_MENSAJE_DEFAULT } from "@/lib/wa-reserva-confirmacion";
 
 const section = {
@@ -32,6 +33,8 @@ export function ConfiguracionForm({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [whatsappMensaje, setWhatsappMensaje] = useState(initial.whatsapp_mensaje ?? "");
+  const [logoUrl, setLogoUrl] = useState(initial.logo_url ?? "");
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => {
     setWhatsappMensaje(initial.whatsapp_mensaje ?? "");
@@ -48,6 +51,26 @@ export function ConfiguracionForm({
       }
     });
   }
+
+  const onUploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    setUploadingLogo(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", f);
+      fd.append("folder", "logos");
+      const { url } = await uploadImage(fd);
+      setLogoUrl(url);
+      toast.success("Logo subido. Guardá los cambios para aplicarlo.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo subir el logo");
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
 
   return (
     <div>
@@ -87,18 +110,47 @@ export function ConfiguracionForm({
               className="rounded-xl"
             />
           </div>
-          <div className="space-y-2">
+         <div className="space-y-2">
             <Label htmlFor="logo_url">URL del logo (header)</Label>
-            <Input
-              id="logo_url"
-              name="logo_url"
-              type="url"
-              defaultValue={initial.logo_url ?? ""}
-              placeholder="https://…"
-              className="rounded-xl"
-            />
+            <div className="flex gap-2">
+              <Input
+                id="logo_url"
+                name="logo_url"
+                type="url"
+                value={logoUrl}
+                onChange={(e) => setLogoUrl(e.target.value)}
+                placeholder="https://…"
+                className="rounded-xl"
+              />
+              <label className="cursor-pointer shrink-0">
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  className="sr-only"
+                  disabled={uploadingLogo}
+                  onChange={(e) => void onUploadLogo(e)}
+                />
+                <span className="inline-flex h-10 items-center gap-2 rounded-xl border border-nautico-900/20 bg-white px-3 text-sm font-medium text-nautico-900 hover:bg-nautico-900/5">
+                  {uploadingLogo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  Subir
+                </span>
+              </label>
+            </div>
+            {logoUrl && (
+              <div className="flex items-center gap-3 rounded-lg border border-nautico-900/10 bg-nautico-900/5 p-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={logoUrl} alt="Preview logo" className="h-10 object-contain" />
+                <button
+                  type="button"
+                  onClick={() => setLogoUrl("")}
+                  className="ml-auto text-xs text-red-500 hover:text-red-700"
+                >
+                  Quitar
+                </button>
+              </div>
+            )}
             <p className="text-xs text-nautico-600/90">
-              Opcional. Si está vacío se muestra la marca &quot;FM&quot;. Podés pegar la URL pública de una imagen (p. ej. desde el almacenamiento del sitio).
+              Opcional. Si está vacío se muestra la marca &quot;FM&quot;.
             </p>
           </div>
           <div className="space-y-2">
