@@ -1,12 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn, evitarOptimizadorNextImage } from "@/lib/utils";
-import { BLUR_DATA_URL } from "@/lib/blur-placeholder";
+import { cn } from "@/lib/utils";
 
 /** Fallback cuando no hay fotos en BD: URLs remotas válidas (evita .jpg locales rotos o HTML disfrazado de imagen). */
 const LOCAL_HERO = [
@@ -46,25 +44,12 @@ export function HeroCarousel({ imageUrls }: { imageUrls: string[] }) {
           transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
           className="absolute inset-0"
         >
-          {slides[index].endsWith(".gif") ? (
-            <img
-              src={slides[index]}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <Image
-              src={slides[index]}
-              alt=""
-              fill
-              className="object-cover"
-              priority={index === 0}
-              sizes="100vw"
-              placeholder="blur"
-              blurDataURL={BLUR_DATA_URL}
-              unoptimized={evitarOptimizadorNextImage(slides[index])}
-            />
-          )}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={slides[index]}
+            alt=""
+            className="h-full w-full object-cover"
+          />
         </motion.div>
       </AnimatePresence>
 
