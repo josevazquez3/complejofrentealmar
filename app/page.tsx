@@ -62,7 +62,6 @@ export default async function HomePage() {
   return (
     <PublicLayout config={config}>
       <HeroCarousel imageUrls={heroUrls} />
-      <ContactBar />
       <IntroSection
         titulo={inicio?.titulo}
         descripcion={inicio?.descripcion}

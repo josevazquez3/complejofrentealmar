@@ -36,7 +36,7 @@ export function HeroCarousel({ imageUrls }: { imageUrls: string[] }) {
   }, [slides.length]);
 
   return (
-    <section id="inicio" className="relative h-[70vh] min-h-[280px] w-full overflow-hidden bg-black">
+    <section id="inicio" className="relative h-screen w-full overflow-hidden bg-black">
       <AnimatePresence initial={false} mode="wait">
         <motion.div
           key={index}
@@ -46,17 +46,25 @@ export function HeroCarousel({ imageUrls }: { imageUrls: string[] }) {
           transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
           className="absolute inset-0"
         >
-          <Image
-            src={slides[index]}
-            alt=""
-            fill
-            className="object-cover"
-            priority={index === 0}
-            sizes="100vw"
-            placeholder="blur"
-            blurDataURL={BLUR_DATA_URL}
-            unoptimized={evitarOptimizadorNextImage(slides[index])}
-          />
+          {slides[index].endsWith(".gif") ? (
+            <img
+              src={slides[index]}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <Image
+              src={slides[index]}
+              alt=""
+              fill
+              className="object-cover"
+              priority={index === 0}
+              sizes="100vw"
+              placeholder="blur"
+              blurDataURL={BLUR_DATA_URL}
+              unoptimized={evitarOptimizadorNextImage(slides[index])}
+            />
+          )}
         </motion.div>
       </AnimatePresence>
 

@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, ImagePlus, Loader2, Trash2, Upload, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronDown, ChevronUp, Film, ImagePlus, Loader2, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   deleteImage,
@@ -14,16 +14,23 @@ import type { CarouselImage } from "@/types/configuracion";
 import { cn } from "@/lib/utils";
 
 const MAX = 10;
+const MAX_VIDEO_SECONDS = 7;
 
 type Row = CarouselImage;
+type FileMode = "image" | "video";
 
 export function CarouselEditor({ initial }: { initial: Row[] }) {
   const [rows, setRows] = useState<Row[]>(() =>
     [...initial].sort((a, b) => a.orden - b.orden)
   );
   const [file, setFile] = useState<File | null>(null);
+  const [fileMode, setFileMode] = useState<FileMode>("image");
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [converting, setConverting] = useState(false);
+  const [convertedGif, setConvertedGif] = useState<File | null>(null);
+  const [gifPreview, setGifPreview] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     setRows([...initial].sort((a, b) => a.orden - b.orden));
@@ -39,18 +46,107 @@ export function CarouselEditor({ initial }: { initial: Row[] }) {
     return () => URL.revokeObjectURL(u);
   }, [file]);
 
-  const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    if (!convertedGif) {
+      setGifPreview(null);
+      return;
+    }
+    const u = URL.createObjectURL(convertedGif);
+    setGifPreview(u);
+    return () => URL.revokeObjectURL(u);
+  }, [convertedGif]);
+
+  const onPickImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     e.target.value = "";
-    if (f) setFile(f);
+    if (!f) return;
+    setFileMode("image");
+    setFile(f);
+    setConvertedGif(null);
   };
 
-  const onUpload = useCallback(async () => {
-    if (!file || rows.length >= MAX) return;
+  const onPickVideo = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    setFileMode("video");
+    setFile(f);
+    setConvertedGif(null);
+  };
+
+  const validateVideoDuration = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (!videoRef.current) return resolve(false);
+      if (videoRef.current.readyState >= 1) {
+        resolve(videoRef.current.duration <= MAX_VIDEO_SECONDS);
+        return;
+      }
+      const onMeta = () => {
+        const dur = videoRef.current!.duration;
+        resolve(dur <= MAX_VIDEO_SECONDS);
+      };
+      videoRef.current.addEventListener("loadedmetadata", onMeta, { once: true });
+    });
+  };
+
+  const convertToGif = useCallback(async () => {
+    if (!file) return;
+    setConverting(true);
+    try {
+      // Validar duración
+      const valid = await validateVideoDuration();
+      if (!valid) {
+        toast.error(`El video debe durar ${MAX_VIDEO_SECONDS} segundos o menos.`);
+        return;
+      }
+
+      // Importar ffmpeg dinámicamente
+      const { FFmpeg } = await import("@ffmpeg/ffmpeg");
+      const { fetchFile, toBlobURL } = await import("@ffmpeg/util");
+
+      const ffmpeg = new FFmpeg();
+
+      // Cargar core desde CDN (evita bundlear los WASM pesados)
+      const baseURL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd";
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+      });
+
+      toast.info("Convirtiendo a GIF...");
+
+      await ffmpeg.writeFile("input.mp4", await fetchFile(file));
+
+      // Conversión: paleta optimizada para mejor calidad
+      await ffmpeg.exec([
+        "-i", "input.mp4",
+        "-vf", "fps=12,scale=960:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse",
+        "-loop", "0",
+        "output.gif",
+      ]);
+
+      const data = await ffmpeg.readFile("output.gif");
+      const blob = new Blob([data as unknown as Uint8Array<ArrayBuffer>], { type: "image/gif" });
+      const gifFile = new File([blob], file.name.replace(/\.mp4$/i, ".gif"), {
+        type: "image/gif",
+      });
+
+      setConvertedGif(gifFile);
+      toast.success("Conversión lista. Revisá el GIF y subilo.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al convertir");
+    } finally {
+      setConverting(false);
+    }
+  }, [file]);
+
+  const onUpload = useCallback(async (overrideFile?: File) => {
+    const toUpload = overrideFile ?? file;
+    if (!toUpload || rows.length >= MAX) return;
     setBusy("upload");
     try {
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", toUpload);
       fd.append("folder", "carousel");
       const { url, path } = await uploadImage(fd);
       const nextOrden = rows.length ? Math.max(...rows.map((r) => r.orden)) + 1 : 0;
@@ -65,6 +161,7 @@ export function CarouselEditor({ initial }: { initial: Row[] }) {
         },
       ]);
       setFile(null);
+      setConvertedGif(null);
       toast.success("Imagen subida. Guardá el orden para persistir en la base.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "No se pudo subir");
@@ -119,27 +216,53 @@ export function CarouselEditor({ initial }: { initial: Row[] }) {
     }
   };
 
+  const reset = () => {
+    setFile(null);
+    setConvertedGif(null);
+  };
+
   return (
     <div className="space-y-6 rounded-xl border border-nautico-900/10 bg-white p-6 shadow-sm">
+
+      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-nautico-700">
           Imágenes: <strong>{rows.length}</strong> / {MAX}
         </p>
         <div className="flex flex-wrap items-center gap-2">
+
+          {/* Botón agregar foto/gif */}
           <label className="cursor-pointer">
             <input
               type="file"
-              accept="image/*"
+              accept="image/*,.gif"
               className="sr-only"
               disabled={rows.length >= MAX || busy !== null}
-              onChange={onPick}
+              onChange={onPickImage}
             />
             <span className="inline-flex items-center gap-2 rounded-lg border border-nautico-900/20 bg-white px-3 py-2 text-sm font-medium text-nautico-900 hover:bg-nautico-900/5">
               <ImagePlus className="h-4 w-4" />
-              Agregar foto
+              Foto / GIF
             </span>
           </label>
-          {file ? (
+
+          {/* Botón agregar video */}
+          <label className="cursor-pointer">
+            <input
+              type="file"
+              accept="video/mp4"
+              className="sr-only"
+              disabled={rows.length >= MAX || busy !== null}
+              onChange={onPickVideo}
+            />
+            <span className="inline-flex items-center gap-2 rounded-lg border border-nautico-900/20 bg-white px-3 py-2 text-sm font-medium text-nautico-900 hover:bg-nautico-900/5">
+              <Film className="h-4 w-4" />
+              Video MP4 → GIF
+            </span>
+          </label>
+
+          {/* Acciones cuando hay archivo seleccionado */}
+          {file && fileMode === "image" && (
             <>
               <Button
                 type="button"
@@ -150,39 +273,84 @@ export function CarouselEditor({ initial }: { initial: Row[] }) {
                 {busy === "upload" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                 Subir
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={busy !== null}
-                onClick={() => setFile(null)}
-                aria-label="Quitar foto elegida"
-              >
-                <X className="mr-1 h-4 w-4" />
-                Otra foto
+              <Button type="button" variant="outline" disabled={busy !== null} onClick={reset}>
+                <X className="mr-1 h-4 w-4" /> Cancelar
               </Button>
             </>
-          ) : null}
+          )}
+
+          {file && fileMode === "video" && !convertedGif && (
+            <>
+              <Button
+                type="button"
+                className="bg-nautico-900 text-white hover:bg-nautico-800"
+                disabled={converting}
+                onClick={() => void convertToGif()}
+              >
+                {converting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Film className="mr-2 h-4 w-4" />}
+                {converting ? "Convirtiendo..." : "Convertir a GIF"}
+              </Button>
+              <Button type="button" variant="outline" disabled={converting} onClick={reset}>
+                <X className="mr-1 h-4 w-4" /> Cancelar
+              </Button>
+            </>
+          )}
+
+          {convertedGif && (
+            <>
+              <Button
+                type="button"
+                className="bg-nautico-900 text-white hover:bg-nautico-800"
+                disabled={busy !== null}
+                onClick={() => void onUpload(convertedGif)}
+              >
+                {busy === "upload" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                Subir GIF
+              </Button>
+              <Button type="button" variant="outline" disabled={busy !== null} onClick={reset}>
+                <X className="mr-1 h-4 w-4" /> Descartar
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
-      {preview ? (
+      {/* Preview imagen/gif */}
+      {preview && fileMode === "image" && (
         <div className="relative mx-auto aspect-video max-h-48 w-full max-w-md overflow-hidden rounded-lg border bg-nautico-900/5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={preview} alt="" className="h-full w-full object-contain" />
-          <Button
-            type="button"
-            size="icon"
-            variant="secondary"
-            className="absolute right-2 top-2 h-9 w-9 bg-white/95 shadow-md hover:bg-white"
-            disabled={busy !== null}
-            onClick={() => setFile(null)}
-            aria-label="Quitar vista previa y elegir otra foto"
-          >
-            <X className="h-4 w-4" />
-          </Button>
         </div>
-      ) : null}
+      )}
 
+      {/* Preview video + elemento oculto para leer duración */}
+      {preview && fileMode === "video" && (
+        <div className="relative mx-auto aspect-video max-h-48 w-full max-w-md overflow-hidden rounded-lg border bg-nautico-900/5">
+          <video
+            ref={videoRef}
+            src={preview}
+            className="h-full w-full object-contain"
+            controls
+            muted
+          />
+          <span className="absolute bottom-2 right-2 rounded bg-black/60 px-2 py-0.5 text-xs text-white">
+            Máx. {MAX_VIDEO_SECONDS}s
+          </span>
+        </div>
+      )}
+
+      {/* Preview GIF convertido */}
+      {gifPreview && (
+        <div className="space-y-2">
+          <p className="text-center text-xs text-nautico-600">GIF generado — revisá antes de subir</p>
+          <div className="relative mx-auto aspect-video max-h-48 w-full max-w-md overflow-hidden rounded-lg border border-green-200 bg-nautico-900/5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={gifPreview} alt="" className="h-full w-full object-contain" />
+          </div>
+        </div>
+      )}
+
+      {/* Grid de slides actuales */}
       <ul className="grid gap-4 sm:grid-cols-2">
         {rows.map((row, i) => (
           <li
@@ -190,10 +358,20 @@ export function CarouselEditor({ initial }: { initial: Row[] }) {
             className="flex gap-3 rounded-lg border border-nautico-900/10 p-3"
           >
             <div className="relative h-24 w-32 shrink-0 overflow-hidden rounded-md bg-nautico-900/10">
-              <Image src={row.url} alt="" fill className="object-cover" sizes="128px" unoptimized />
+              {row.url.endsWith(".gif") ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={row.url} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <Image src={row.url} alt="" fill className="object-cover" sizes="128px" unoptimized />
+              )}
               <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 text-xs text-white">
                 #{i + 1}
               </span>
+              {row.url.endsWith(".gif") && (
+                <span className="absolute bottom-1 right-1 rounded bg-black/60 px-1.5 text-xs text-white">
+                  GIF
+                </span>
+              )}
             </div>
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <div className="flex flex-wrap gap-1">
@@ -241,9 +419,9 @@ export function CarouselEditor({ initial }: { initial: Row[] }) {
         ))}
       </ul>
 
-      {rows.length === 0 ? (
+      {rows.length === 0 && (
         <p className="text-sm text-nautico-600">No hay imágenes. Subí al menos una para el carrusel.</p>
-      ) : null}
+      )}
 
       <Button
         type="button"

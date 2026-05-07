@@ -68,7 +68,9 @@ export async function uploadImage(formData: FormData): Promise<{ url: string; pa
   const file = raw;
   if (!file.size) throw new Error("Archivo vacío");
   if (!file.type.startsWith("image/")) throw new Error("Solo se permiten imágenes");
-  if (file.size > 8 * 1024 * 1024) throw new Error("Máximo 8 MB por imagen");
+  const isGif = file.type === "image/gif";
+  const maxSize = isGif ? 50 * 1024 * 1024 : 8 * 1024 * 1024;
+  if (file.size > maxSize) throw new Error(isGif ? "Máximo 50 MB por GIF" : "Máximo 8 MB por imagen");
 
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
   const safeFolder = folder.replace(/[^a-z0-9/_-]/gi, "").slice(0, 40) || "misc";
