@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import type { CarouselImage } from "@/types/configuracion";
 import { cn } from "@/lib/utils";
 
-const MAX = 10;
+const MAX = 6;
 const MAX_VIDEO_SECONDS = 7;
 
 type Row = CarouselImage;
@@ -89,14 +89,18 @@ export function CarouselEditor({ initial }: { initial: Row[] }) {
     });
   };
 
-  const convertToGif = useCallback(async () => {
+   const convertToGif = useCallback(async (trimToMax = false) => {
     if (!file) return;
     setConverting(true);
     try {
-      // Validar duración
       const valid = await validateVideoDuration();
-      if (!valid) {
-        toast.error(`El video debe durar ${MAX_VIDEO_SECONDS} segundos o menos.`);
+      if (!valid && !trimToMax) {
+        setConverting(false);
+        const confirmed = window.confirm(
+          `Su video dura más de ${MAX_VIDEO_SECONDS} segundos. ¿Desea conservar solo los primeros ${MAX_VIDEO_SECONDS} segundos?`
+        );
+        if (!confirmed) return;
+        void convertToGif(true);
         return;
       }
 
@@ -117,9 +121,10 @@ export function CarouselEditor({ initial }: { initial: Row[] }) {
 
       await ffmpeg.writeFile("input.mp4", await fetchFile(file));
 
-      // Conversión: paleta optimizada para mejor calidad
+      const trimArgs = trimToMax ? ["-t", String(MAX_VIDEO_SECONDS)] : [];
       await ffmpeg.exec([
         "-i", "input.mp4",
+        ...trimArgs,
         "-vf", "fps=12,scale=960:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse",
         "-loop", "0",
         "output.gif",
@@ -247,7 +252,7 @@ export function CarouselEditor({ initial }: { initial: Row[] }) {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-nautico-700">
-          Imágenes: <strong>{rows.length}</strong> / {MAX}
+          Imágenes/GIFs: <strong>{rows.length}</strong> / {MAX}
         </p>
         <div className="flex flex-wrap items-center gap-2">
 
