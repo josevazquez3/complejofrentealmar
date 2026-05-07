@@ -1,5 +1,4 @@
 import { CasasGrid } from "@/components/home/CasasGrid";
-import { ContactBar } from "@/components/home/ContactBar";
 import { EquipamientoSection } from "@/components/home/EquipamientoSection";
 import { HeroCarousel } from "@/components/home/HeroCarousel";
 import { IntroSection } from "@/components/home/IntroSection";
