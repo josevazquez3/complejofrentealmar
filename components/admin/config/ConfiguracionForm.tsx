@@ -111,18 +111,10 @@ export function ConfiguracionForm({
             />
           </div>
          <div className="space-y-2">
-            <Label htmlFor="logo_url">URL del logo (header)</Label>
-            <div className="flex gap-2">
-              <Input
-                id="logo_url"
-                name="logo_url"
-                type="url"
-                value={logoUrl}
-                onChange={(e) => setLogoUrl(e.target.value)}
-                placeholder="https://…"
-                className="rounded-xl"
-              />
-              <label className="cursor-pointer shrink-0">
+            <Label>Logo (header)</Label>
+            <input type="hidden" name="logo_url" value={logoUrl} />
+            <div className="flex items-center gap-3">
+              <label className="cursor-pointer">
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/webp,image/svg+xml"
@@ -132,22 +124,21 @@ export function ConfiguracionForm({
                 />
                 <span className="inline-flex h-10 items-center gap-2 rounded-xl border border-nautico-900/20 bg-white px-3 text-sm font-medium text-nautico-900 hover:bg-nautico-900/5">
                   {uploadingLogo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                  Subir
+                  {logoUrl ? "Cambiar logo" : "Subir logo"}
                 </span>
               </label>
-            </div>
-            {logoUrl && (
-              <div className="flex items-center gap-3 rounded-lg border border-nautico-900/10 bg-nautico-900/5 p-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={logoUrl} alt="Preview logo" className="h-10 object-contain" />
+              {logoUrl && (
                 <button
                   type="button"
                   onClick={() => setLogoUrl("")}
-                  className="ml-auto text-xs text-red-500 hover:text-red-700"
+                  className="text-xs text-red-500 hover:text-red-700"
                 >
-                  Quitar
+                  Quitar logo
                 </button>
-              </div>
+              )}
+            </div>
+            {logoUrl && (
+              <p className="text-xs text-green-600">✓ Logo cargado. Guardá los cambios para aplicarlo.</p>
             )}
             <p className="text-xs text-nautico-600/90">
               Opcional. Si está vacío se muestra la marca &quot;FM&quot;.
