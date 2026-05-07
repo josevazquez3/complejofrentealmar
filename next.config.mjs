@@ -6,10 +6,10 @@ const nextConfig = {
     },
   },
   /** Evita la ruta compilada interna `/favicon.ico` (a veces rompe webpack en dev). */
-   async headers() {
+  async headers() {
     return [
       {
-        source: "/(.*)",
+        source: "/admin/(.*)",
         headers: [
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
           { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
