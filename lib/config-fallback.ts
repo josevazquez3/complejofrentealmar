@@ -16,6 +16,7 @@ export const CONFIG_FALLBACK: Configuracion = {
   instagram_url: "https://instagram.com",
   youtube_video_id: null,
   logo_url: null,
+  whatsapp_mensaje_publico: "Hola! Me comunico desde el sitio web. Quisiera hacer una consulta.",
   updated_at: new Date().toISOString(),
 };
 
