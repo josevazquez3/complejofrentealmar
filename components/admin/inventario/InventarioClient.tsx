@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
+import { exportToExcel } from "@/lib/excel";
 import {
   AlertCircle,
   AlertTriangle,
@@ -33,40 +34,7 @@ import { MoverStockModal } from "./MoverStockModal";
 
 export type VistaInventario = "lista" | "unidad" | "stockbajo";
 
-function exportarCSV(items: InventarioItem[]) {
-  const headers = [
-    "Nombre",
-    "Unidad",
-    "Categoría",
-    "Cantidad",
-    "Unidad medida",
-    "Estado",
-    "Ubicación",
-    "Stock mínimo",
-    "Última actualización",
-  ];
-  const rows = items.map((i) => [
-    i.nombre,
-    i.casas?.nombre ?? "",
-    i.inventario_categorias?.nombre ?? "",
-    i.cantidad,
-    i.unidad,
-    i.estado,
-    i.ubicacion ?? "",
-    i.cantidad_min,
-    formatFechaCorta(new Date(i.updated_at).toISOString().slice(0, 10)),
-  ]);
-  const csv = [headers, ...rows]
-    .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
-    .join("\n");
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `inventario-${new Date().toISOString().split("T")[0]}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+
 
 function badgeEstado(estado: EstadoItem) {
   switch (estado) {
@@ -175,7 +143,18 @@ export function InventarioClient({
       const res = await exportarInventarioItemsAccion();
       if (res.ok) {
         if (res.items.length) {
-          exportarCSV(res.items);
+          const rows = res.items.map((i) => ({
+            Nombre: i.nombre,
+            Unidad: i.casas?.nombre ?? "—",
+            Categoría: i.inventario_categorias?.nombre ?? "—",
+            Cantidad: i.cantidad,
+            "Unidad medida": i.unidad,
+            Estado: i.estado,
+            Ubicación: i.ubicacion ?? "",
+            "Stock mínimo": i.cantidad_min,
+            "Última actualización": formatFechaCorta(new Date(i.updated_at).toISOString().slice(0, 10)),
+          }));
+          exportToExcel(rows, `inventario-${new Date().toISOString().split("T")[0]}.xlsx`, "Inventario");
           showToast("Archivo descargado.", "success");
         } else showToast("No hay artículos para exportar.", "error");
       } else showToast(res.error ?? "Error al exportar.", "error");
