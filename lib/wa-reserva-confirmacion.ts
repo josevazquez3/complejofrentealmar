@@ -5,15 +5,15 @@ import type { ReservaAdmin } from "@/types";
 const MIN_DIGITS = 8;
 
 export const WHATSAPP_MENSAJE_DEFAULT =
-  `Hola {nombre} {apellido}! 🏖️\n` +
-  `Tu reserva en {complejo} fue *APROBADA*.\n\n` +
+  `Hola {nombre} {apellido}! 👋\n` +
+  `Tu reserva en {complejo} fue *APROBADA*. ✅\n\n` +
   `📅 Ingreso: {fecha_inicio}\n` +
   `📅 Egreso: {fecha_fin}\n` +
   `🏠 Unidad: {unidad}\n` +
-  `👥 Adultos: {adultos} | Niños: {ninos} | Mascotas: {mascotas}\n\n` +
-  `💰 Importe de la seña: {senia}\n` +
-  `Para confirmar la reserva, te pedimos que la abones.\n` +
-  `¡Gracias! 🙏`;
+  `👤 Adultos: {adultos} | Niños: {ninos} | Mascotas: {mascotas}\n\n` +
+  `💰 Seña: {senia}\n` +
+  `Para confirmar, te pedimos que la abones.\n` +
+  `¡Gracias! 🙌`;
 
 /** Valor inicial del textarea en admin: lo guardado en BD o la plantilla por defecto. */
 export function mensajeWhatsappParaEditor(guardado: string | null | undefined): string {

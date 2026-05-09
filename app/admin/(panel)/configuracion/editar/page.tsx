@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
 
 export default function AdminConfiguracionEditarPage() {
   return (
-    <div>
+    <div className="overflow-hidden">
       <div className="mb-2 flex items-center gap-3">
         <PenLine className="h-8 w-8 text-arena-600" aria-hidden />
         <div>

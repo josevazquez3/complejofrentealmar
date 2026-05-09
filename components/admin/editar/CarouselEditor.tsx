@@ -380,7 +380,7 @@ export function CarouselEditor({ initial }: { initial: Row[] }) {
         {rows.map((row, i) => (
           <li
             key={row.storage_path}
-            className="flex gap-3 rounded-lg border border-nautico-900/10 p-3"
+            className="flex gap-3 overflow-hidden rounded-lg border border-nautico-900/10 p-3"
           >
             <div className="relative h-24 w-32 shrink-0 overflow-hidden rounded-md bg-nautico-900/10">
               {row.url.endsWith(".gif") ? (
@@ -438,7 +438,7 @@ export function CarouselEditor({ initial }: { initial: Row[] }) {
                   )}
                 </Button>
               </div>
-              <p className="truncate text-xs text-nautico-600">{row.storage_path}</p>
+              <p className="w-0 min-w-full truncate text-xs text-nautico-600">{row.storage_path}</p>
             </div>
           </li>
         ))}
