@@ -87,10 +87,10 @@ export function Header() {
       transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
       className="sticky top-0 z-50 w-full border-b border-fm-border bg-white shadow-[0_1px_12px_rgba(0,0,0,0.06)]"
     >
-      <div className="relative flex items-center justify-between px-8 py-4">
+      <div className="relative flex items-center justify-between px-4 py-3 sm:px-8 sm:py-4">
         <Link href="/" className="group flex items-center gap-3">
           {logoUrl ? (
-            <span className="relative h-16 w-[180px] shrink-0 sm:w-[220px]">
+            <span className="relative h-12 w-[120px] shrink-0 sm:h-16 sm:w-[180px] lg:w-[220px]">
               <Image
                 src={logoUrl}
                 alt={config.complejo_nombre}
@@ -175,7 +175,7 @@ export function Header() {
               <SheetHeader>
                 <SheetTitle className="text-left font-display text-fm-red">FM FRENTE AL MAR</SheetTitle>
               </SheetHeader>
-              <nav className="mt-10 flex flex-col gap-6">
+              <nav className="mt-10 flex flex-col gap-6 items-center">
                 {nav.map((item) => {
                   const active = item.match(pathname, hash);
                   return (

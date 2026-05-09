@@ -211,23 +211,52 @@ export function ConfiguracionForm({
               público y para habilitar la confirmación de reservas desde el panel admin.
             </p>
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="whatsapp_mensaje">Mensaje de confirmación WhatsApp</Label>
-            <textarea
-              id="whatsapp_mensaje"
-              name="whatsapp_mensaje"
-              value={whatsappMensaje}
-              onChange={(e) => setWhatsappMensaje(e.target.value)}
-              rows={10}
-              placeholder={WHATSAPP_MENSAJE_DEFAULT}
-              className="w-full min-h-[12rem] resize-y rounded-xl border border-nautico-900/15 bg-white px-3 py-2 text-sm text-nautico-900 shadow-sm outline-none ring-nautico-900/20 focus:ring-2"
-            />
-            <div className="rounded-lg border border-nautico-900/10 bg-nautico-50/80 px-3 py-2 text-xs text-nautico-800/90">
-              <p className="font-medium text-nautico-900">Variables disponibles:</p>
-              <p className="mt-1 font-mono leading-relaxed">
-                {"{nombre}"} {"{apellido}"} {"{complejo}"} {"{fecha_inicio}"} {"{fecha_fin}"}{" "}
-                {"{unidad}"} {"{adultos}"} {"{ninos}"} {"{mascotas}"} {"{senia}"}
-              </p>
+            <div className="rounded-xl border border-nautico-900/15 bg-white shadow-sm focus-within:ring-2 focus-within:ring-nautico-900/20">
+              <div className="flex flex-wrap gap-1.5 border-b border-nautico-900/10 p-2">
+                {[
+                  { label: "Nombre", value: "{nombre}" },
+                  { label: "Apellido", value: "{apellido}" },
+                  { label: "Complejo", value: "{complejo}" },
+                  { label: "Fecha entrada", value: "{fecha_inicio}" },
+                  { label: "Fecha salida", value: "{fecha_fin}" },
+                  { label: "Unidad", value: "{unidad}" },
+                  { label: "Adultos", value: "{adultos}" },
+                  { label: "Niños", value: "{ninos}" },
+                  { label: "Mascotas", value: "{mascotas}" },
+                  { label: "Seña", value: "{senia}" },
+                ].map((v) => (
+                  <button
+                    key={v.value}
+                    type="button"
+                    onClick={() => {
+                      const ta = document.getElementById("whatsapp_mensaje") as HTMLTextAreaElement;
+                      const start = ta.selectionStart ?? whatsappMensaje.length;
+                      const end = ta.selectionEnd ?? whatsappMensaje.length;
+                      const next = whatsappMensaje.slice(0, start) + v.value + whatsappMensaje.slice(end);
+                      setWhatsappMensaje(next);
+                      setTimeout(() => {
+                        ta.focus();
+                        ta.setSelectionRange(start + v.value.length, start + v.value.length);
+                      }, 0);
+                    }}
+                    className="rounded-md bg-nautico-50 px-2 py-1 text-xs font-medium text-nautico-800 hover:bg-arena-100 hover:text-nautico-900 border border-nautico-900/10"
+                  >
+                    + {v.label}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                id="whatsapp_mensaje"
+                name="whatsapp_mensaje"
+                value={whatsappMensaje}
+                onChange={(e) => setWhatsappMensaje(e.target.value)}
+                rows={10}
+                placeholder={WHATSAPP_MENSAJE_DEFAULT}
+                className="w-full min-h-[12rem] resize-y rounded-b-xl bg-white px-3 py-2 text-sm text-nautico-900 outline-none"
+              />
             </div>
             <Button
               type="button"

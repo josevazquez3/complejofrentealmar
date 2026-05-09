@@ -22,45 +22,12 @@ import { eliminarMovimiento, exportarTesoreriaMovimientosAccion } from "@/app/ad
 import { CategoriaTesoreriaIcon } from "./CategoriaTesoreriaIcon";
 import { MovimientoFormModal } from "./MovimientoFormModal";
 import { ResumenTesoreria } from "./ResumenTesoreria";
+import { exportToExcel } from "@/lib/excel";
 
 export type TabTesoreria = "todos" | "ingresos" | "egresos" | "resumen";
 
 const METODOS: MetodoPago[] = ["efectivo", "transferencia", "tarjeta", "cheque", "otro"];
 
-function exportarCSV(movimientos: TesoreriaMovimiento[]) {
-  const headers = [
-    "Fecha",
-    "Tipo",
-    "Concepto",
-    "Categoría",
-    "Unidad",
-    "Monto",
-    "Método de pago",
-    "Comprobante",
-    "Notas",
-  ];
-  const rows = movimientos.map((m) => [
-    m.fecha,
-    m.tipo,
-    m.concepto,
-    m.tesoreria_categorias?.nombre ?? "",
-    m.casas?.nombre ?? "",
-    m.tipo === "ingreso" ? m.monto : -m.monto,
-    m.metodo_pago,
-    m.comprobante ?? "",
-    m.notas ?? "",
-  ]);
-  const csv = [headers, ...rows]
-    .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
-    .join("\n");
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `tesoreria-${new Date().toISOString().split("T")[0]}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 function buildUrl(parts: {
   tab: TabTesoreria;
@@ -172,7 +139,18 @@ export function TesoreriaClient({
       });
       if (res.ok) {
         if (res.items.length) {
-          exportarCSV(res.items);
+          const rows = res.items.map((m) => ({
+          Fecha: m.fecha.slice(0, 10),
+          Tipo: m.tipo,
+          Concepto: m.concepto,
+          Categoría: m.tesoreria_categorias?.nombre ?? "—",
+          Unidad: m.casas?.nombre ?? "—",
+          Monto: m.tipo === "ingreso" ? m.monto : -m.monto,
+          Método: m.metodo_pago,
+          Comprobante: m.comprobante ?? "",
+          Notas: m.notas ?? "",
+        }));
+        exportToExcel(rows, `tesoreria-${new Date().toISOString().split("T")[0]}.xlsx`, "Tesorería");
           showToast("Archivo descargado.", "success");
         } else showToast("No hay movimientos para exportar.", "error");
       } else showToast(res.error ?? "Error al exportar.", "error");

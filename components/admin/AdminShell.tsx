@@ -63,12 +63,12 @@ export function AdminShell({
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen flex-col md:flex-row">
       <aside
         className={cn(
-          "sticky top-0 flex h-screen flex-col border-r border-nautico-700/50 bg-nautico-900 text-blanco transition-all duration-300",
-          collapsed ? "w-[72px]" : "w-56"
-        )}
+        "hidden md:sticky md:top-0 md:flex md:h-screen md:flex-col border-r border-nautico-700/50 bg-nautico-900 text-blanco transition-all duration-300",
+        collapsed ? "w-[72px]" : "w-56"
+      )}
       >
         <div className="flex h-16 items-center justify-between border-b border-white/10 px-3">
           {!collapsed && (
@@ -140,7 +140,46 @@ export function AdminShell({
           </button>
         </div>
       </aside>
-      <div className="min-h-screen flex-1 overflow-x-auto bg-blanco p-4 md:p-8">{children}</div>
+      <div className="min-h-screen flex-1 overflow-x-auto bg-blanco p-4 md:p-8 pb-20 md:pb-8">{children}</div>
+    {/* Bottom nav — solo mobile */}
+<nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t border-nautico-700/50 bg-nautico-900 px-2 py-2 md:hidden">
+  {visibleLinks.slice(0, 5).map(({ href, label, icon: Icon, key }) => {
+    const active = pathname === href || pathname.startsWith(`${href}/`);
+    return (
+      <Link
+        key={href}
+        href={href}
+        className={cn(
+          "relative flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] transition-colors",
+          active ? "text-arena-400" : "text-blanco/70"
+        )}
+      >
+        <Icon className="h-5 w-5 shrink-0" />
+        <span>{label}</span>
+        {key === "reservas" && pendingReservas > 0 && (
+          <span className="absolute right-0 top-0 rounded-full bg-yellow-400 px-1 text-[9px] font-bold text-yellow-900">
+            {pendingReservas}
+          </span>
+        )}
+        {key === "inventario" && inventarioStockBajo > 0 && (
+          <span className="absolute right-0 top-0 rounded-full bg-fm-red px-1 text-[9px] font-bold text-white">
+            {inventarioStockBajo}
+          </span>
+        )}
+      </Link>
+    );
+  })}
+  {/* Botón logout compacto */}
+  <button
+    type="button"
+    onClick={handleLogout}
+    className="flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] text-red-300"
+  >
+    <LogOut className="h-5 w-5" />
+    <span>Salir</span>
+  </button>
+</nav>
+    
     </div>
   );
 }

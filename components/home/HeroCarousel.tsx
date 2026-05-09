@@ -34,7 +34,7 @@ export function HeroCarousel({ imageUrls }: { imageUrls: string[] }) {
   }, [slides.length]);
 
   return (
-    <section id="inicio" className="relative h-screen w-full overflow-hidden bg-black">
+    <section id="inicio" className="relative h-[100svh] w-full overflow-hidden bg-black">
       <AnimatePresence initial={false} mode="wait">
         <motion.div
           key={index}
@@ -48,7 +48,7 @@ export function HeroCarousel({ imageUrls }: { imageUrls: string[] }) {
           <img
             src={slides[index]}
             alt=""
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover object-center scale-105"
           />
         </motion.div>
       </AnimatePresence>
@@ -58,7 +58,7 @@ export function HeroCarousel({ imageUrls }: { imageUrls: string[] }) {
         variant="ghost"
         size="icon"
         onClick={() => go(-1)}
-        className="absolute left-3 top-1/2 z-10 h-11 w-11 -translate-y-1/2 rounded-lg border border-white/30 bg-white/25 text-white backdrop-blur-sm transition hover:bg-white/40"
+        className="absolute left-4 sm:left-6 top-1/2 z-10 h-11 w-11 -translate-y-1/2 rounded-lg border border-white/30 bg-white/25 text-white backdrop-blur-sm transition hover:bg-white/40"
         aria-label="Anterior"
       >
         <ChevronLeft className="h-6 w-6" />
@@ -68,13 +68,13 @@ export function HeroCarousel({ imageUrls }: { imageUrls: string[] }) {
         variant="ghost"
         size="icon"
         onClick={() => go(1)}
-        className="absolute right-3 top-1/2 z-10 h-11 w-11 -translate-y-1/2 rounded-lg border border-white/30 bg-white/25 text-white backdrop-blur-sm transition hover:bg-white/40"
+        className="absolute right-4 sm:right-6 top-1/2 z-10 h-11 w-11 -translate-y-1/2 rounded-lg border border-white/30 bg-white/25 text-white backdrop-blur-sm transition hover:bg-white/40"
         aria-label="Siguiente"
       >
         <ChevronRight className="h-6 w-6" />
       </Button>
 
-      <div className="absolute bottom-6 left-0 right-0 z-10 flex justify-center gap-2">
+      <div className="absolute bottom-8 pb-safe left-0 right-0 z-10 flex justify-center gap-2">
         {slides.map((_, i) => (
           <button
             key={i}

@@ -5,19 +5,11 @@ import type { ReservaConCasa } from "@/types";
 /**
  * Exporta un arreglo de objetos planos a un archivo .xlsx (SheetJS).
  */
-export function exportToExcel(
-  data: Record<string, string | number | null | undefined>[],
-  filename: string,
-  sheetName: string
-): void {
-  const safeName = sheetName.slice(0, 31) || "Hoja1";
-  const ws = XLSX.utils.json_to_sheet(
-    data.length ? data : [{ mensaje: "Sin datos" }]
-  );
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, safeName);
-  const out = filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`;
-  XLSX.writeFile(wb, out);
+export function exportToExcel(data: Record<string, unknown>[], filename: string, sheetName = "Hoja1") {
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+  XLSX.writeFile(workbook, filename);
 }
 
 function fechaHoyArchivo(): string {

@@ -11,10 +11,9 @@ export default async function AdminCasasPage() {
       <div>
         <h1 className="font-display text-3xl font-semibold text-nautico-900">Casas (unidades de alquiler)</h1>
         <p className="mt-2 max-w-2xl text-sm text-nautico-700/85">
-          Solo las casas <strong className="text-nautico-900">activas</strong> aparecen en el sitio público (listado
-          CasasGrid si no hay unidades de marketing), en <code className="rounded bg-nautico-900/10 px-1">/reservas</code>{" "}
-          y en la ficha pública. Las unidades del bloque &quot;marketing&quot; en el inicio son otro modelo (tabla{" "}
-          <code className="rounded bg-nautico-900/10 px-1">unidad</code>) y no reemplazan a las casas para reservar.
+          Solo las casas <strong className="text-nautico-900">activas</strong> se muestran
+          en el sitio web y pueden recibir reservas. Las imágenes del inicio son decorativas
+          y se administran por separado desde la sección <strong className="text-nautico-900">Unidades</strong>.
         </p>
       </div>
     </CasasAdminView>
