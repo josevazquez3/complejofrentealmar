@@ -5,8 +5,16 @@ import { useConfiguracion } from "@/hooks/useConfiguracion";
 
 export function WhatsAppButton() {
   const config = useConfiguracion();
-  const digits = (config.whatsapp_e164 ?? "5492233024541").replace(/\D/g, "");
-  const href = `https://wa.me/${digits}`;
+
+  const digits = (config.whatsapp_e164 ?? "").replace(/\D/g, "");
+
+  const mensaje =
+    config.whatsapp_mensaje_publico?.trim() ||
+    "Hola! Me comunico desde el sitio web. Quisiera hacer una consulta.";
+
+  const href = `https://wa.me/${digits}?text=${encodeURIComponent(mensaje)}`;
+
+  if (!digits) return null;
 
   return (
     <a

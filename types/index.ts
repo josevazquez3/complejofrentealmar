@@ -246,6 +246,7 @@ export interface Configuracion {
   youtube_video_id: string | null;
   /** URL del logo en el header (opcional). */
   logo_url: string | null;
+  whatsapp_mensaje_publico: string;
   updated_at: string;
 }
 

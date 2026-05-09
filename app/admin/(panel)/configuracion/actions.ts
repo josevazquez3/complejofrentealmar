@@ -19,6 +19,7 @@ function configuracionFromForm(formData: FormData) {
     facebookUrl: String(formData.get("facebook_url") ?? "").trim() || null,
     instagramUrl: String(formData.get("instagram_url") ?? "").trim() || null,
     logoUrl: String(formData.get("logo_url") ?? "").trim() || null,
+    whatsappMensajePublico: String(formData.get("whatsapp_mensaje_publico") ?? "").trim() || "Hola! Me comunico desde el sitio web. Quisiera hacer una consulta.",
   };
 }
 

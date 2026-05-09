@@ -267,6 +267,20 @@ export function ConfiguracionForm({
               Restaurar mensaje por defecto
             </Button>
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="whatsapp_mensaje_publico">Mensaje botón WhatsApp (sitio público)</Label>
+            <Input
+              id="whatsapp_mensaje_publico"
+              name="whatsapp_mensaje_publico"
+              defaultValue={initial.whatsapp_mensaje_publico ?? "Hola! Me comunico desde el sitio web. Quisiera hacer una consulta."}
+              className="rounded-xl"
+            />
+            <p className="text-xs text-nautico-600/90">
+              Texto que se abre automáticamente al tocar el botón de WhatsApp en el sitio.
+            </p>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="email_contacto">Email de contacto</Label>
             <Input

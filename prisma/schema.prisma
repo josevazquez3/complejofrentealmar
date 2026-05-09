@@ -35,6 +35,8 @@ model Configuracion {
   mapaQuery          String?  @map("mapa_query")
   /// Plantilla del mensaje wa.me (placeholders: {nombre}, {apellido}, {complejo}, etc.).
   whatsappMensaje    String   @default("") @map("whatsapp_mensaje")
+  /// Mensaje del botón flotante de WhatsApp en el sitio público.
+  whatsappMensajePublico String @default("Hola! Me comunico desde el sitio web. Quisiera hacer una consulta.") @map("whatsapp_mensaje_publico")
   /// WhatsApp del complejo (solo dígitos, código país): sitio público y confirmación wa.me en panel admin.
   whatsappE164       String?  @map("whatsapp_e164")
   emailContacto      String?  @map("email_contacto")
