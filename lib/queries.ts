@@ -68,6 +68,9 @@ function mapConfig(row: {
   mapaQuery: string | null;
   whatsappMensaje?: string | null;
   whatsappE164: string | null;
+  cuentaAlias: string | null;
+  cuentaCbu: string | null;
+  cuentaTexto: string | null;
   emailContacto: string | null;
   facebookUrl: string | null;
   instagramUrl: string | null;
@@ -85,6 +88,9 @@ function mapConfig(row: {
     mapa_query: row.mapaQuery,
     whatsapp_mensaje: row.whatsappMensaje ?? "",
     whatsapp_e164: row.whatsappE164,
+    cuenta_alias: row.cuentaAlias,
+    cuenta_cbu: row.cuentaCbu,
+    cuenta: row.cuentaTexto,
     email_contacto: row.emailContacto,
     facebook_url: row.facebookUrl,
     instagram_url: row.instagramUrl,

@@ -35,10 +35,19 @@ export function ConfiguracionForm({
   const [whatsappMensaje, setWhatsappMensaje] = useState(initial.whatsapp_mensaje ?? "");
   const [logoUrl, setLogoUrl] = useState(initial.logo_url ?? "");
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [cuentaAlias, setCuentaAlias] = useState(initial.cuenta_alias ?? "");
+  const [cuentaCbu, setCuentaCbu] = useState(initial.cuenta_cbu ?? "");
+  const [cuentaTexto, setCuentaTexto] = useState(initial.cuenta ?? "");
 
   useEffect(() => {
     setWhatsappMensaje(initial.whatsapp_mensaje ?? "");
   }, [initial.whatsapp_mensaje]);
+
+  useEffect(() => {
+    setCuentaAlias(initial.cuenta_alias ?? "");
+    setCuentaCbu(initial.cuenta_cbu ?? "");
+    setCuentaTexto(initial.cuenta ?? "");
+  }, [initial.cuenta_alias, initial.cuenta_cbu, initial.cuenta]);
 
   function onSubmit(formData: FormData) {
     startTransition(async () => {
@@ -227,6 +236,9 @@ export function ConfiguracionForm({
                   { label: "Niños", value: "{ninos}" },
                   { label: "Mascotas", value: "{mascotas}" },
                   { label: "Seña", value: "{senia}" },
+                  { label: "Alias", value: "{alias}" },
+                  { label: "CBU", value: "{cbu}" },
+                  { label: "Cuenta", value: "{cuenta}" },
                 ].map((v) => (
                   <button
                     key={v.value}
@@ -266,6 +278,51 @@ export function ConfiguracionForm({
             >
               Restaurar mensaje por defecto
             </Button>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="font-display text-base text-nautico-800">Datos cuenta</h3>
+            <p className="text-xs text-nautico-600/90">
+              Opcional. Si los completás, podés usar <span className="font-mono">{`{alias}`}</span>,{" "}
+              <span className="font-mono">{`{cbu}`}</span> y <span className="font-mono">{`{cuenta}`}</span> en el mensaje
+              de confirmación.
+            </p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="cuenta_alias">Alias</Label>
+                <Input
+                  id="cuenta_alias"
+                  name="cuenta_alias"
+                  value={cuentaAlias}
+                  onChange={(e) => setCuentaAlias(e.target.value)}
+                  placeholder="ej: frentealmar.azul"
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cuenta_cbu">CBU</Label>
+                <Input
+                  id="cuenta_cbu"
+                  name="cuenta_cbu"
+                  value={cuentaCbu}
+                  onChange={(e) => setCuentaCbu(e.target.value)}
+                  placeholder="22 dígitos"
+                  className="rounded-xl"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cuenta_texto">Cuenta</Label>
+              <Textarea
+                id="cuenta_texto"
+                name="cuenta_texto"
+                value={cuentaTexto}
+                onChange={(e) => setCuentaTexto(e.target.value)}
+                rows={3}
+                placeholder="Ej: Banco X — Caja de Ahorro — Titular Juan Pérez"
+                className="min-h-[96px] resize-y rounded-xl"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">

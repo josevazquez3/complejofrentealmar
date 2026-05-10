@@ -331,6 +331,9 @@ export function ReservasAdminClient({
                   whatsappE164,
                   whatsappMensaje: whatsappMensajeActivo,
                   nombreComplejo,
+                  cuentaAlias: configuracionCompleta.cuenta_alias ?? null,
+                  cuentaCbu: configuracionCompleta.cuenta_cbu ?? null,
+                  cuentaTexto: configuracionCompleta.cuenta ?? null,
                 } as const;
                 const url = puedeConfirmar.ok
                   ? waMeUrlConfirmacionReserva(r, waConfig, seniaMap[r.id] ?? "")
@@ -598,6 +601,9 @@ export function ReservasAdminClient({
         whatsappE164={whatsappE164}
         whatsappMensaje={whatsappMensajeActivo}
         nombreComplejo={nombreComplejo}
+        cuentaAlias={configuracionCompleta.cuenta_alias ?? null}
+        cuentaCbu={configuracionCompleta.cuenta_cbu ?? null}
+        cuentaTexto={configuracionCompleta.cuenta ?? null}
         onClose={() => {
           setDetalleOpen(false);
           setDetalle(null);

@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, X } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
+import { useRef } from "react";
 
 type Props = {
   open: boolean;
@@ -25,6 +26,36 @@ export function EditarMensajeWhatsappModal({
   guardando,
   guardadoOk,
 }: Props) {
+  const taRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const variables = [
+    { label: "Nombre", value: "{nombre}" },
+    { label: "Apellido", value: "{apellido}" },
+    { label: "Complejo", value: "{complejo}" },
+    { label: "Fecha entrada", value: "{fecha_inicio}" },
+    { label: "Fecha salida", value: "{fecha_fin}" },
+    { label: "Unidad", value: "{unidad}" },
+    { label: "Adultos", value: "{adultos}" },
+    { label: "Niños", value: "{ninos}" },
+    { label: "Mascotas", value: "{mascotas}" },
+    { label: "Seña", value: "{senia}" },
+    { label: "Alias", value: "{alias}" },
+    { label: "CBU", value: "{cbu}" },
+    { label: "Cuenta", value: "{cuenta}" },
+  ] as const;
+
+  function insertarVariable(v: string) {
+    const ta = taRef.current;
+    const start = ta?.selectionStart ?? mensaje.length;
+    const end = ta?.selectionEnd ?? mensaje.length;
+    const next = mensaje.slice(0, start) + v + mensaje.slice(end);
+    onChange(next);
+    setTimeout(() => {
+      taRef.current?.focus();
+      taRef.current?.setSelectionRange(start + v.length, start + v.length);
+    }, 0);
+  }
+
   return (
     <AnimatePresence>
       {open ? (
@@ -73,20 +104,28 @@ export function EditarMensajeWhatsappModal({
               </p>
             ) : (
               <>
+                <div className="mt-4 rounded-xl border border-fm-border bg-white shadow-sm focus-within:ring-2 focus-within:ring-green-500/20">
+                  <div className="flex flex-wrap gap-1.5 border-b border-fm-border/70 p-2">
+                    {variables.map((v) => (
+                      <button
+                        key={v.value}
+                        type="button"
+                        onClick={() => insertarVariable(v.value)}
+                        disabled={guardando}
+                        className="rounded-md border border-fm-border bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 transition hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50"
+                      >
+                        + {v.label}
+                      </button>
+                    ))}
+                  </div>
                 <textarea
+                  ref={taRef}
                   rows={10}
-                  className="mt-4 w-full resize-y rounded-lg border border-fm-border px-3 py-2 text-sm text-gray-800 outline-none focus:border-green-500/60"
+                  className="w-full min-h-[12rem] resize-y rounded-b-xl bg-white px-3 py-2 text-sm text-gray-800 outline-none"
                   value={mensaje}
                   onChange={(e) => onChange(e.target.value)}
                   disabled={guardando}
                 />
-                <div className="mt-3 rounded-lg bg-gray-50 p-3 text-xs text-fm-muted">
-                  <p className="font-medium text-gray-700">Variables disponibles</p>
-                  <p className="mt-1 font-mono leading-relaxed">
-                    {"{nombre} {apellido} {complejo} {fecha_inicio} {fecha_fin}"}
-                    <br />
-                    {"{unidad} {adultos} {ninos} {mascotas} {senia}"}
-                  </p>
                 </div>
                 <div className="mt-6 flex flex-wrap items-center gap-3">
                   <button

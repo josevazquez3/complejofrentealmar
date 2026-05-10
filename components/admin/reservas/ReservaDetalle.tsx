@@ -33,6 +33,9 @@ export function ReservaDetalle({
   whatsappE164,
   whatsappMensaje,
   nombreComplejo,
+  cuentaAlias,
+  cuentaCbu,
+  cuentaTexto,
 }: {
   open: boolean;
   onClose: () => void;
@@ -40,6 +43,9 @@ export function ReservaDetalle({
   whatsappE164: string;
   whatsappMensaje: string;
   nombreComplejo: string;
+  cuentaAlias?: string | null;
+  cuentaCbu?: string | null;
+  cuentaTexto?: string | null;
 }) {
   const { showToast } = useToast();
   const [seniaInput, setSeniaInput] = useState("");
@@ -81,6 +87,9 @@ export function ReservaDetalle({
             whatsappE164,
             whatsappMensaje,
             nombreComplejo,
+            cuentaAlias,
+            cuentaCbu,
+            cuentaTexto,
           },
           seniaInput || undefined
         )

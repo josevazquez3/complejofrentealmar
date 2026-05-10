@@ -25,6 +25,9 @@ export interface WaConfirmacionConfig {
   whatsappE164: string;
   whatsappMensaje: string;
   nombreComplejo: string;
+  cuentaAlias?: string | null;
+  cuentaCbu?: string | null;
+  cuentaTexto?: string | null;
 }
 
 /**
@@ -32,7 +35,7 @@ export interface WaConfirmacionConfig {
  */
 export function armarMensajeWhatsApp(
   reserva: ReservaAdmin,
-  config: { whatsappMensaje: string; nombreComplejo: string },
+  config: { whatsappMensaje: string; nombreComplejo: string; cuentaAlias?: string | null; cuentaCbu?: string | null; cuentaTexto?: string | null },
   seniaOverride?: string
 ): string {
   const plantilla = config.whatsappMensaje?.trim() || WHATSAPP_MENSAJE_DEFAULT;
@@ -53,7 +56,10 @@ export function armarMensajeWhatsApp(
     .replace(/{adultos}/g, String(reserva.adultos))
     .replace(/{ninos}/g, String(reserva.ninos))
     .replace(/{mascotas}/g, String(reserva.mascotas ?? 0))
-    .replace(/{senia}/g, seniaTexto);
+    .replace(/{senia}/g, seniaTexto)
+    .replace(/{alias}/g, (config.cuentaAlias ?? "").trim())
+    .replace(/{cbu}/g, (config.cuentaCbu ?? "").trim())
+    .replace(/{cuenta}/g, (config.cuentaTexto ?? "").trim());
 }
 
 /**

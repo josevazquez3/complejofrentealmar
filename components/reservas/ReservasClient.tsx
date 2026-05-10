@@ -182,7 +182,11 @@ export function ReservasClient({
     if (!apellido.trim()) e.apellido = "Requerido";
     if (!email.trim()) e.email = "Requerido";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = "Email inválido";
+    const telDigits = telefono.replace(/\D/g, "");
     if (!telefono.trim()) e.telefono = "Requerido";
+    else if (telDigits.length < 10) {
+      e.telefono = "El número parece incompleto. Usá solo dígitos (ej. 5492215550313).";
+    }
     if (!Number.isFinite(adultos) || adultos < 1) e.adultos = "Requerido";
     if (!Number.isFinite(ninos) || ninos < 0) e.ninos = "Valor inválido";
     if (!Number.isFinite(mascotas) || mascotas < 0 || mascotas > 5) e.mascotas = "Entre 0 y 5";
@@ -203,7 +207,7 @@ export function ReservasClient({
       nombre: nombre.trim(),
       apellido: apellido.trim(),
       email: email.trim(),
-      telefono: telefono.trim(),
+      telefono: telefono.replace(/\D/g, ""),
       fecha_desde: desdeYmd,
       fecha_hasta: hastaYmd,
       adultos,
@@ -430,13 +434,28 @@ export function ReservasClient({
                 {errors.email ? <p className="mt-1 text-xs text-fm-red">{errors.email}</p> : null}
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Teléfono *</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="reserva-telefono">
+                  Teléfono *
+                </label>
+                <p id="reserva-telefono-help" className="mb-2 text-xs text-fm-muted">
+                  Solo dígitos, sin{" "}
+                  <span className="whitespace-nowrap">+</span> ni espacios. Celular Argentina:{" "}
+                  <span className="font-medium text-fm-text">54 + 9 + código de área (sin 0) + número (sin 15)</span>.
+                  Debe empezar con{" "}
+                  <span className="font-mono font-medium text-fm-text">549</span>, no{" "}
+                  <span className="font-mono font-medium text-fm-text">542</span>. Ejemplo:{" "}
+                  <span className="font-mono font-medium text-fm-text">5491144441111</span>.
+                </p>
                 <input
+                  id="reserva-telefono"
                   value={telefono}
                   onChange={(e) => setTelefono(e.target.value)}
                   required
+                  inputMode="numeric"
+                  autoComplete="tel-national"
+                  placeholder="Ej: 5491144441111"
                   className="w-full rounded-lg border border-fm-border px-4 py-3 outline-none ring-fm-red focus:ring-2"
-                  autoComplete="tel"
+                  aria-describedby="reserva-telefono-help"
                 />
                 {errors.telefono ? <p className="mt-1 text-xs text-fm-red">{errors.telefono}</p> : null}
               </div>

@@ -239,6 +239,10 @@ export interface Configuracion {
   whatsapp_mensaje: string;
   /** WhatsApp solo dígitos (código país). Sitio público y confirmación wa.me en panel admin. */
   whatsapp_e164: string | null;
+  /** Datos de cuenta (opcionales) para transferencias; usados en la plantilla WhatsApp. */
+  cuenta_alias?: string | null;
+  cuenta_cbu?: string | null;
+  cuenta?: string | null;
   email_contacto: string | null;
   facebook_url: string | null;
   instagram_url: string | null;

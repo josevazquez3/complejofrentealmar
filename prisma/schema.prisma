@@ -39,6 +39,10 @@ model Configuracion {
   whatsappMensajePublico String @default("Hola! Me comunico desde el sitio web. Quisiera hacer una consulta.") @map("whatsapp_mensaje_publico")
   /// WhatsApp del complejo (solo dígitos, código país): sitio público y confirmación wa.me en panel admin.
   whatsappE164       String?  @map("whatsapp_e164")
+  /// Datos de cuenta (opcionales) para transferencias. Usados en plantillas WhatsApp: {alias} {cbu} {cuenta}.
+  cuentaAlias        String?  @map("cuenta_alias")
+  cuentaCbu          String?  @map("cuenta_cbu")
+  cuentaTexto        String?  @map("cuenta_texto")
   emailContacto      String?  @map("email_contacto")
   facebookUrl        String?  @map("facebook_url")
   instagramUrl       String?  @map("instagram_url")
