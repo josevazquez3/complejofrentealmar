@@ -5,7 +5,6 @@ const nextConfig = {
       bodySizeLimit: "55mb",
     },
   },
-  /** Evita la ruta compilada interna `/favicon.ico` (a veces rompe webpack en dev). */
   async headers() {
     return [
       {
@@ -16,11 +15,6 @@ const nextConfig = {
         ],
       },
     ];
-  },
-  async rewrites() {
-    return {
-      beforeFiles: [{ source: "/favicon.ico", destination: "/favicon.svg" }],
-    };
   },
   images: {
     remotePatterns: [
